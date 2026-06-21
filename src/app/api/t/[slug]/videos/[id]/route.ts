@@ -1,0 +1,110 @@
+import { prisma } from "@/lib/db";
+import { Visibility } from "@/lib/constants";
+import { videoUpdateSchema, parseYouTubeId } from "@/lib/validation";
+import {
+  parseRecordedOn,
+  resolveVideoTitle,
+  validateAccessMemberships,
+  validateCategory,
+  validateTags,
+} from "@/lib/videos";
+import {
+  ApiError,
+  jsonOk,
+  readJson,
+  requireTenantContext,
+  route,
+} from "@/lib/api";
+import type { Prisma } from "@/generated/prisma/client";
+
+export const runtime = "nodejs";
+
+async function loadOwned(tenantId: string, id: string) {
+  const v = await prisma.video.findUnique({ where: { id } });
+  if (!v || v.tenantId !== tenantId) throw new ApiError(404, "找不到影片");
+  return v;
+}
+
+export const PATCH = route(
+  async (
+    req: Request,
+    { params }: { params: Promise<{ slug: string; id: string }> },
+  ) => {
+    const { slug, id } = await params;
+    const { ctx } = await requireTenantContext(slug, { admin: true });
+    const video = await loadOwned(ctx.tenant.id, id);
+    const input = videoUpdateSchema.parse(await readJson(req));
+
+    const data: Prisma.VideoUpdateInput = {};
+
+    if (input.youtube !== undefined) {
+      const youtubeId = parseYouTubeId(input.youtube);
+      if (!youtubeId) throw new ApiError(400, "無法辨識的 YouTube 連結或 ID");
+      data.youtubeId = youtubeId;
+    }
+    if (input.title !== undefined) {
+      // Blank title → fall back to the (new or existing) YouTube title.
+      const finalYoutubeId =
+        (data.youtubeId as string | undefined) ?? video.youtubeId;
+      data.title = await resolveVideoTitle(input.title, finalYoutubeId);
+    }
+    if (input.notes !== undefined) data.notes = input.notes || null;
+    if (input.recordedOn !== undefined) {
+      data.recordedOn = parseRecordedOn(input.recordedOn || undefined);
+    }
+    if (input.visibility !== undefined) data.visibility = input.visibility;
+    if (input.categoryId !== undefined) {
+      const categoryId = await validateCategory(ctx.tenant.id, input.categoryId);
+      data.category = categoryId
+        ? { connect: { id: categoryId } }
+        : { disconnect: true };
+    }
+
+    const finalVisibility = input.visibility ?? video.visibility;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.video.update({ where: { id }, data });
+
+      if (input.tagIds !== undefined) {
+        const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
+        await tx.videoTag.deleteMany({ where: { videoId: id } });
+        if (tagIds.length) {
+          await tx.videoTag.createMany({
+            data: tagIds.map((tagId) => ({ videoId: id, tagId })),
+          });
+        }
+      }
+
+      if (finalVisibility === Visibility.PUBLIC) {
+        // Public videos carry no allow-list.
+        await tx.videoAccess.deleteMany({ where: { videoId: id } });
+      } else if (input.accessMembershipIds !== undefined) {
+        const ids = await validateAccessMemberships(
+          ctx.tenant.id,
+          input.accessMembershipIds,
+        );
+        await tx.videoAccess.deleteMany({ where: { videoId: id } });
+        if (ids.length) {
+          await tx.videoAccess.createMany({
+            data: ids.map((membershipId) => ({ videoId: id, membershipId })),
+          });
+        }
+      }
+    });
+
+    return jsonOk({ updated: true });
+  },
+);
+
+export const DELETE = route(
+  async (
+    _req: Request,
+    { params }: { params: Promise<{ slug: string; id: string }> },
+  ) => {
+    const { slug, id } = await params;
+    const { ctx } = await requireTenantContext(slug, { admin: true });
+    await loadOwned(ctx.tenant.id, id);
+    await prisma.video.delete({ where: { id } });
+    return jsonOk({ deleted: true });
+  },
+);

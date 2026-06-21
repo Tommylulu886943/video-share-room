@@ -1,0 +1,150 @@
+// Film Room — multi-tenant sports-club video platform.
+// SQLite does not support native enums, so enum-like fields are Strings
+// validated in the application layer (see src/lib/constants.ts).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "nodejs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// A sports club. Fully isolated tenant: its own members, videos, categories, tags.
+model Tenant {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  name       String
+  brandColor String   @default("#2563eb")
+  brandLogo  String? // emoji or short text mark used as the club logo
+  createdAt  DateTime @default(now())
+
+  memberships Membership[]
+  videos      Video[]
+  categories  Category[]
+  tags        Tag[]
+}
+
+/// A global login account. One account can hold memberships across many tenants (D7).
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String   @unique
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  platformRole  String   @default("USER") // "USER" | "SUPER_ADMIN"
+  createdAt     DateTime @default(now())
+
+  memberships    Membership[]
+  tokens         Token[]
+  uploadedVideos Video[]      @relation("VideoUploader")
+}
+
+/// Binds a User to a Tenant, carrying the per-club name, level, role and review status.
+model Membership {
+  id           String    @id @default(cuid())
+  userId       String
+  tenantId     String
+  name         String // display name shown to teammates in this club
+  level        String // sport level / rank in this club (e.g. kendo dan, badminton grade)
+  role         String    @default("MEMBER") // "MEMBER" | "ADMIN"
+  status       String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION | PENDING | APPROVED | REJECTED
+  appliedAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  videoAccess VideoAccess[]
+
+  @@unique([userId, tenantId])
+  @@index([tenantId, status])
+}
+
+/// Two-level category tree (parentId null = top level). Maintained by tenant admins (D5).
+model Category {
+  id        String  @id @default(cuid())
+  tenantId  String
+  name      String
+  parentId  String?
+  sortOrder Int     @default(0)
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Category[] @relation("CategoryTree")
+  videos   Video[]
+
+  @@index([tenantId, parentId])
+}
+
+/// Tag list maintained only by admins (D4); members pick from it.
+model Tag {
+  id        String @id @default(cuid())
+  tenantId  String
+  name      String
+  sortOrder Int    @default(0)
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  videos VideoTag[]
+
+  @@unique([tenantId, name])
+}
+
+model Video {
+  id           String    @id @default(cuid())
+  tenantId     String
+  youtubeId    String // YouTube video id (unlisted link per D11)
+  title        String
+  notes        String?
+  recordedOn   DateTime?
+  visibility   String    @default("PUBLIC") // "PUBLIC" | "RESTRICTED"
+  categoryId   String?
+  uploadedById String?
+  createdAt    DateTime  @default(now())
+
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  uploadedBy User?         @relation("VideoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  tags       VideoTag[]
+  access     VideoAccess[]
+
+  @@index([tenantId, visibility])
+}
+
+/// Many-to-many join between Video and Tag.
+model VideoTag {
+  videoId String
+  tagId   String
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, tagId])
+}
+
+/// Method A allow-list: which memberships may view a RESTRICTED video (FR-3 / D6).
+model VideoAccess {
+  videoId      String
+  membershipId String
+
+  video      Video      @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, membershipId])
+}
+
+/// Single-use tokens for email verification (and future password reset).
+model Token {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  userId     String
+  purpose    String // "EMAIL_VERIFY"
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

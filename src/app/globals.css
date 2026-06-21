@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-brand: var(--brand);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Helvetica Neue",
+    Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  /* Default brand accent; overridden per-tenant on the tenant shell. */
+  --brand: #2563eb;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  background: #f8fafc; /* slate-50 */
+  color: #0f172a; /* slate-900 */
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Reusable component classes built on Tailwind utilities. */
+@layer components {
+  .btn,
+  .btn-brand,
+  .btn-outline,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-brand {
+    @apply text-white shadow-sm;
+    background: var(--brand);
+  }
+  .btn-outline {
+    @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
 }
