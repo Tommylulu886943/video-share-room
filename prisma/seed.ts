@@ -1,13 +1,13 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL || "file:./dev.db",
-  }),
-});
+const tursoUrl = process.env.TURSO_DATABASE_URL;
+const adapter = tursoUrl
+  ? new PrismaLibSql({ url: tursoUrl, authToken: process.env.TURSO_AUTH_TOKEN })
+  : new PrismaLibSql({ url: process.env.DATABASE_URL || "file:./dev.db" });
+const prisma = new PrismaClient({ adapter });
 
 const hash = (pw: string) => bcrypt.hash(pw, 10);
 
