@@ -52,15 +52,17 @@ npm run db:seed
 | `AUTH_SECRET` | `openssl rand -base64 48` 產生的隨機字串（**必填、≥32 字**，沒設正式環境會拒絕啟動） |
 | `APP_URL` | https://你的網域.vercel.app（email 驗證連結會用，務必填正式網域） |
 | `APP_NAME` | Film Room 影片室 |
-| `EMAIL_PROVIDER` | `smtp` |
-| `EMAIL_FROM` | Film Room \<no-reply@你的網域\> |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | 你的 SMTP（建議 Resend / SendGrid / SES） |
+| `EMAIL_PROVIDER` | `resend` |
+| `RESEND_API_KEY` | 從 https://resend.com/api-keys 建立 |
+| `EMAIL_FROM` | Film Room \<onboarding@resend.dev\>（測試用）或你在 Resend 驗證過網域的寄件地址 |
 
 4. Deploy。
 
 ## 重要注意事項
 
 - **`prisma generate` 已自動執行**（`postinstall` 與 `build` 內），Vercel 不用額外設定。
-- **Email 在 Vercel 一定要用 SMTP**：`console` provider 會寫本機檔案，serverless 環境無持久檔案系統。沒設 SMTP 不會讓網站崩潰（寄信失敗會被吞掉），但**註冊驗證信與審核通知信會寄不出去** → 新會員無法完成 email 驗證。正式上線務必設定 SMTP（Resend 最簡單）。
+- **Email 在 Vercel 一定要用 Resend**（`EMAIL_PROVIDER=resend` + `RESEND_API_KEY`）：`console` provider 會寫本機檔案，serverless 環境無持久檔案系統。沒設不會讓網站崩潰（寄信失敗會被吞掉），但**註冊驗證信與審核通知信會寄不出去** → 新會員無法完成 email 驗證。
+  - 測試階段 `EMAIL_FROM` 可用 `onboarding@resend.dev`（限寄給你自己的 Resend 帳號 email）；要寄給任何人，需在 Resend 後台**驗證你的網域**並把 `EMAIL_FROM` 改成該網域的地址。
+  - 程式走 Resend 的 HTTP API（非 SMTP），在 Vercel serverless 上最穩定。
 - 之後 schema 有變動時：本機 `npm run db:migrate` 產生新的 migration，再 `turso db shell film-room < <新的 migration.sql>` 套到 Turso。
 - `.env` 與 `dev.db` 不會進 git；秘密只放在本機 `.env` 與 Vercel 環境變數。

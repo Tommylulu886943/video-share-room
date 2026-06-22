@@ -32,6 +32,28 @@ async function deliverConsole(msg: MailMessage): Promise<void> {
   }
 }
 
+async function deliverResend(msg: MailMessage): Promise<void> {
+  // Resend HTTP API — preferred on serverless (no outbound SMTP needed).
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.email.resendApiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.email.from,
+      to: msg.to,
+      subject: msg.subject,
+      html: msg.html,
+      text: msg.text,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Resend API ${res.status}: ${detail}`);
+  }
+}
+
 async function deliverSmtp(msg: MailMessage): Promise<void> {
   const nodemailer = (await import("nodemailer")).default;
   const transport = nodemailer.createTransport({
@@ -53,7 +75,9 @@ async function deliverSmtp(msg: MailMessage): Promise<void> {
 
 export async function sendMail(msg: MailMessage): Promise<void> {
   try {
-    if (env.email.provider === "smtp" && env.email.smtp.host) {
+    if (env.email.provider === "resend" && env.email.resendApiKey) {
+      await deliverResend(msg);
+    } else if (env.email.provider === "smtp" && env.email.smtp.host) {
       await deliverSmtp(msg);
     } else {
       await deliverConsole(msg);

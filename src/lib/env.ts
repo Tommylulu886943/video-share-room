@@ -44,8 +44,9 @@ export const env = {
   appName: str("APP_NAME", "Film Room 影片室"),
 
   email: {
-    provider: str("EMAIL_PROVIDER", "console") as "console" | "smtp",
-    from: str("EMAIL_FROM", "Film Room <no-reply@filmroom.local>"),
+    provider: str("EMAIL_PROVIDER", "console") as "console" | "smtp" | "resend",
+    from: str("EMAIL_FROM", "Film Room <onboarding@resend.dev>"),
+    resendApiKey: process.env.RESEND_API_KEY ?? "",
     smtp: {
       host: process.env.SMTP_HOST ?? "",
       port: int("SMTP_PORT", 587),
