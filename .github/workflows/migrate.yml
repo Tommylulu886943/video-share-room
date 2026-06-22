@@ -1,0 +1,45 @@
+name: Apply migrations to Turso
+
+# Runs when migration files (or the apply script) change on main, and can be
+# triggered manually from the Actions tab. The apply step is idempotent — it
+# only runs migrations not yet recorded in the database.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "prisma/migrations/**"
+      - "scripts/apply-turso.ts"
+  workflow_dispatch: {}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    env:
+      TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+      TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets are configured
+        id: cfg
+        run: |
+          if [ -n "$TURSO_DATABASE_URL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::TURSO_DATABASE_URL secret not set — skipping migration apply."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ready == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install deps
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm ci --ignore-scripts
+
+      - name: Apply migrations to Turso
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm run db:push:turso
