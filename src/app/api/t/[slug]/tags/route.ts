@@ -7,13 +7,14 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
 export const POST = route(
   async (req: Request, { params }: { params: Promise<{ slug: string }> }) => {
     const { slug } = await params;
-    const { ctx } = await requireTenantContext(slug, { admin: true });
+    const { session, ctx } = await requireTenantContext(slug, { admin: true });
     const { name } = tagCreateSchema.parse(await readJson(req));
 
     const exists = await prisma.tag.findUnique({
@@ -24,6 +25,12 @@ export const POST = route(
     const count = await prisma.tag.count({ where: { tenantId: ctx.tenant.id } });
     const tag = await prisma.tag.create({
       data: { tenantId: ctx.tenant.id, name, sortOrder: count },
+    });
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "tag.create",
+      summary: `新增標籤「${name}」`,
     });
     return jsonOk(tag);
   },

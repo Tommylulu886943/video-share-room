@@ -60,6 +60,8 @@ export async function readJson(req: Request): Promise<unknown> {
 interface TenantGuardOptions {
   /** Require the user to be a tenant admin or super admin. */
   admin?: boolean;
+  /** Require upload rights (admin, super admin, or a member granted canUpload). */
+  upload?: boolean;
 }
 
 /**
@@ -75,6 +77,8 @@ export async function requireTenantContext(
   if (!ctx) throw new ApiError(404, "找不到社團");
   if (opts.admin) {
     if (!ctx.isAdmin) throw new ApiError(403, "需要管理者權限");
+  } else if (opts.upload) {
+    if (!ctx.canUpload) throw new ApiError(403, "你沒有上傳影片的權限");
   } else if (!ctx.isMember) {
     throw new ApiError(403, "你沒有檢視此社團的權限");
   }

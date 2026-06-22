@@ -9,6 +9,7 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -50,6 +51,13 @@ export const POST = route(
     });
 
     await sendApplicationResult(membership.id, approved);
+
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: approved ? "member.approve" : "member.reject",
+      summary: `${approved ? "核可" : "拒絕"}了 ${membership.name} 的入社申請`,
+    });
 
     return jsonOk({ status: approved ? "APPROVED" : "REJECTED" });
   },

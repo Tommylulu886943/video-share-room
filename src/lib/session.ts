@@ -18,6 +18,7 @@ export interface SessionMembership {
   brandLogo: string | null;
   role: string;
   status: string;
+  canUpload: boolean;
   name: string;
   level: string;
 }
@@ -61,6 +62,7 @@ export async function loadSessionUser(
       brandLogo: m.tenant.brandLogo,
       role: m.role,
       status: m.status,
+      canUpload: m.canUpload,
       name: m.name,
       level: m.level,
     })),

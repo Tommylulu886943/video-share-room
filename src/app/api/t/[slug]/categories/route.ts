@@ -7,13 +7,14 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
 export const POST = route(
   async (req: Request, { params }: { params: Promise<{ slug: string }> }) => {
     const { slug } = await params;
-    const { ctx } = await requireTenantContext(slug, { admin: true });
+    const { session, ctx } = await requireTenantContext(slug, { admin: true });
     const { name, parentId } = categoryCreateSchema.parse(await readJson(req));
 
     if (parentId) {
@@ -38,6 +39,13 @@ export const POST = route(
         parentId: parentId ?? null,
         sortOrder: count,
       },
+    });
+
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "category.create",
+      summary: `新增${parentId ? "子" : ""}分類「${name}」`,
     });
 
     return jsonOk(category);

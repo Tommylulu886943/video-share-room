@@ -16,14 +16,15 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-// Upload is admin-only (D10).
+// Upload allowed for admins, super admins, or members granted canUpload.
 export const POST = route(
   async (req: Request, { params }: { params: Promise<{ slug: string }> }) => {
     const { slug } = await params;
-    const { session, ctx } = await requireTenantContext(slug, { admin: true });
+    const { session, ctx } = await requireTenantContext(slug, { upload: true });
     const input = videoCreateSchema.parse(await readJson(req));
 
     const youtubeId = parseYouTubeId(input.youtube);
@@ -54,6 +55,13 @@ export const POST = route(
         tags: { create: tagIds.map((tagId) => ({ tagId })) },
         access: { create: accessIds.map((membershipId) => ({ membershipId })) },
       },
+    });
+
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "video.create",
+      summary: `上傳影片「${video.title}」`,
     });
 
     return jsonOk(video, { status: 201 });

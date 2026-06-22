@@ -36,6 +36,8 @@ type Props = {
   categoryTree: CategoryNode[];
   allTags: TagItem[];
   members: MemberItem[];
+  /** false = contributor view: can add, but no edit/delete of existing videos. */
+  canManage?: boolean;
 };
 
 const emptyForm = {
@@ -55,6 +57,7 @@ export function VideoManager({
   categoryTree,
   allTags,
   members,
+  canManage = true,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -418,22 +421,24 @@ export function VideoManager({
                     拍攝日期：{v.recordedOn}
                   </p>
                 )}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    className="btn-outline"
-                    onClick={() => startEdit(v)}
-                  >
-                    編輯
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-danger"
-                    onClick={() => handleDelete(v.id)}
-                  >
-                    刪除
-                  </button>
-                </div>
+                {canManage && (
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => startEdit(v)}
+                    >
+                      編輯
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => handleDelete(v.id)}
+                    >
+                      刪除
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

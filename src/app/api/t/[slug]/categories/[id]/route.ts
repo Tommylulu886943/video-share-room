@@ -7,6 +7,7 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
@@ -62,10 +63,16 @@ export const DELETE = route(
     { params }: { params: Promise<{ slug: string; id: string }> },
   ) => {
     const { slug, id } = await params;
-    const { ctx } = await requireTenantContext(slug, { admin: true });
-    await loadOwned(ctx.tenant.id, id);
+    const { session, ctx } = await requireTenantContext(slug, { admin: true });
+    const cat = await loadOwned(ctx.tenant.id, id);
     // Children cascade; videos' categoryId is set null by the schema.
     await prisma.category.delete({ where: { id } });
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "category.delete",
+      summary: `刪除分類「${cat.name}」`,
+    });
     return jsonOk({ deleted: true });
   },
 );

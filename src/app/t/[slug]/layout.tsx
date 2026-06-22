@@ -55,6 +55,7 @@ export default async function TenantLayout({
         current={current}
         tenants={accessible}
         isAdmin={ctx.isAdmin}
+        canUpload={ctx.canUpload}
         isSuperAdmin={ctx.isSuperAdmin}
         username={session.username}
       />

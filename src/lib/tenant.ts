@@ -12,6 +12,8 @@ export interface TenantContext {
   isAdmin: boolean;
   /** True if the user may view this tenant's content (approved member, admin, or super admin). */
   isMember: boolean;
+  /** True if the user may upload videos (admin, super admin, or an approved member granted canUpload). */
+  canUpload: boolean;
   isSuperAdmin: boolean;
 }
 
@@ -36,6 +38,7 @@ export const resolveTenantContext = cache(async function resolveTenantContext(
 
   const isAdmin = isSuperAdmin || isTenantAdmin;
   const isMember = isAdmin || approved;
+  const canUpload = isAdmin || (approved && Boolean(membership?.canUpload));
 
-  return { tenant, membership, isAdmin, isMember, isSuperAdmin };
+  return { tenant, membership, isAdmin, isMember, canUpload, isSuperAdmin };
 });

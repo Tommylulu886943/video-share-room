@@ -28,6 +28,7 @@ model Tenant {
   videos      Video[]
   categories  Category[]
   tags        Tag[]
+  auditLogs   AuditLog[]
 }
 
 /// A global login account. One account can hold memberships across many tenants (D7).
@@ -53,6 +54,7 @@ model Membership {
   name         String // display name shown to teammates in this club
   level        String // sport level / rank in this club (e.g. kendo dan, badminton grade)
   role         String    @default("MEMBER") // "MEMBER" | "ADMIN"
+  canUpload    Boolean   @default(false) // grant a non-admin member upload rights
   status       String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION | PENDING | APPROVED | REJECTED
   appliedAt    DateTime  @default(now())
   reviewedAt   DateTime?
@@ -150,4 +152,19 @@ model Token {
   createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Append-only record of admin/contributor actions, shown to the club owner.
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  actorUserId String?
+  actorName   String // snapshot of who acted (membership name or username)
+  action      String // machine code, e.g. "video.create", "member.approve"
+  summary     String // human-readable zh-Hant line
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
 }

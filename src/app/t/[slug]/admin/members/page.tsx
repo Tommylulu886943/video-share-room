@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MemberReview } from "@/components/admin/MemberReview";
+import { MemberUploadToggle } from "@/components/admin/MemberUploadToggle";
 
 export default async function MembersPage({
   params,
@@ -74,6 +75,7 @@ export default async function MembersPage({
                   <th className="py-2 pr-4 font-medium">帳號</th>
                   <th className="py-2 pr-4 font-medium">角色</th>
                   <th className="py-2 pr-4 font-medium">狀態</th>
+                  <th className="py-2 pr-4 font-medium">可上傳</th>
                 </tr>
               </thead>
               <tbody>
@@ -87,6 +89,20 @@ export default async function MembersPage({
                     </td>
                     <td className="py-2 pr-4">
                       <StatusBadge status={m.status} />
+                    </td>
+                    <td className="py-2 pr-4">
+                      {m.status === MembershipStatus.APPROVED &&
+                      m.role !== TenantRole.ADMIN ? (
+                        <MemberUploadToggle
+                          slug={slug}
+                          membershipId={m.id}
+                          initial={m.canUpload}
+                        />
+                      ) : m.role === TenantRole.ADMIN ? (
+                        <span className="text-xs text-slate-400">（管理者）</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -14,14 +14,15 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 
 export const runtime = "nodejs";
 
-// Bulk create videos from many YouTube links/IDs (admin only, D10).
+// Bulk create videos (admin, super admin, or members granted canUpload).
 export const POST = route(
   async (req: Request, { params }: { params: Promise<{ slug: string }> }) => {
     const { slug } = await params;
-    const { session, ctx } = await requireTenantContext(slug, { admin: true });
+    const { session, ctx } = await requireTenantContext(slug, { upload: true });
     const input = videoBatchSchema.parse(await readJson(req));
 
     // Shared settings are validated once for the whole batch.
@@ -72,6 +73,15 @@ export const POST = route(
       } catch {
         failed.push({ input: valid[i].input, reason: "建立失敗" });
       }
+    }
+
+    if (created > 0) {
+      await recordAudit({
+        tenantId: ctx.tenant.id,
+        ...auditActor(session, ctx),
+        action: "video.batch",
+        summary: `批量上傳 ${created} 部影片`,
+      });
     }
 
     return jsonOk({ created, failed });

@@ -9,7 +9,7 @@ import { landingPathFor } from "@/lib/nav";
  */
 export async function pageTenantContext(
   slug: string,
-  opts: { admin?: boolean } = {},
+  opts: { admin?: boolean; upload?: boolean } = {},
 ): Promise<{ session: SessionUser; ctx: TenantContext }> {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -19,6 +19,8 @@ export async function pageTenantContext(
 
   if (opts.admin) {
     if (!ctx.isAdmin) redirect(`/t/${slug}`);
+  } else if (opts.upload) {
+    if (!ctx.canUpload) redirect(`/t/${slug}`);
   } else if (!ctx.isMember) {
     redirect(landingPathFor(session));
   }

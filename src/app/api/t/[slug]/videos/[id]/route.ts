@@ -16,6 +16,7 @@ import {
   requireTenantContext,
   route,
 } from "@/lib/api";
+import { auditActor, recordAudit } from "@/lib/audit";
 import type { Prisma } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -32,7 +33,7 @@ export const PATCH = route(
     { params }: { params: Promise<{ slug: string; id: string }> },
   ) => {
     const { slug, id } = await params;
-    const { ctx } = await requireTenantContext(slug, { admin: true });
+    const { session, ctx } = await requireTenantContext(slug, { admin: true });
     const video = await loadOwned(ctx.tenant.id, id);
     const input = videoUpdateSchema.parse(await readJson(req));
 
@@ -99,6 +100,13 @@ export const PATCH = route(
       }
     });
 
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "video.update",
+      summary: `編輯影片「${video.title}」`,
+    });
+
     return jsonOk({ updated: true });
   },
 );
@@ -109,9 +117,15 @@ export const DELETE = route(
     { params }: { params: Promise<{ slug: string; id: string }> },
   ) => {
     const { slug, id } = await params;
-    const { ctx } = await requireTenantContext(slug, { admin: true });
-    await loadOwned(ctx.tenant.id, id);
+    const { session, ctx } = await requireTenantContext(slug, { admin: true });
+    const video = await loadOwned(ctx.tenant.id, id);
     await prisma.video.delete({ where: { id } });
+    await recordAudit({
+      tenantId: ctx.tenant.id,
+      ...auditActor(session, ctx),
+      action: "video.delete",
+      summary: `刪除影片「${video.title}」`,
+    });
     return jsonOk({ deleted: true });
   },
 );

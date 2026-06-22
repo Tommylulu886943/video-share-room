@@ -12,12 +12,14 @@ export function TenantHeader({
   current,
   tenants,
   isAdmin,
+  canUpload,
   isSuperAdmin,
   username,
 }: {
   current: TenantInfo;
   tenants: TenantInfo[];
   isAdmin: boolean;
+  canUpload: boolean;
   isSuperAdmin: boolean;
   username: string;
 }) {
@@ -37,6 +39,14 @@ export function TenantHeader({
           >
             影片
           </Link>
+          {canUpload && !isAdmin && (
+            <Link
+              href={`/t/${current.slug}/upload`}
+              className="rounded-lg px-3 py-1.5 font-medium transition hover:bg-white/10"
+            >
+              上傳
+            </Link>
+          )}
           {isAdmin && (
             <Link
               href={`/t/${current.slug}/admin`}
