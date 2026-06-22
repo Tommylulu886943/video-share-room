@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
 interface TenantOption {
   slug: string;
   name: string;
 }
+
+type RegisterResult = {
+  needsVerification: boolean;
+  status: string;
+  redirect?: string;
+};
 
 export function RegisterForm({
   tenants,
@@ -24,9 +31,10 @@ export function RegisterForm({
     email: "",
     password: "",
   });
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<RegisterResult | null>(null);
 
   function set<K extends keyof typeof form>(k: K, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -37,8 +45,14 @@ export function RegisterForm({
     setError(null);
     setLoading(true);
     try {
-      await apiPost("/api/auth/register", form);
-      setDone(true);
+      const res = await apiPost<RegisterResult>("/api/auth/register", form);
+      if (res.redirect) {
+        // Auto-approved → already logged in; go straight to the club.
+        router.push(res.redirect);
+        router.refresh();
+        return;
+      }
+      setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : "申請失敗");
     } finally {
@@ -46,18 +60,19 @@ export function RegisterForm({
     }
   }
 
-  if (done) {
+  if (result) {
     return (
       <div className="space-y-4 text-sm text-slate-600">
         <div className="rounded-lg bg-green-50 px-4 py-3 text-green-800">
           <p className="font-semibold">申請已送出！</p>
-          <p className="mt-1">
-            我們已寄出一封驗證信到 <strong>{form.email}</strong>
-            。請點擊信中連結完成 email 驗證，驗證後你的申請才會送交社團管理者審核。
-          </p>
-          <p className="mt-2 text-xs text-green-700">
-            （開發模式下，信件會輸出到伺服器主控台與專案的 .mail/ 資料夾。）
-          </p>
+          {result.needsVerification ? (
+            <p className="mt-1">
+              我們已寄出一封驗證信到 <strong>{form.email}</strong>
+              。請點擊信中連結完成 email 驗證。
+            </p>
+          ) : (
+            <p className="mt-1">你的申請已送出，待社團管理者核可後即可登入觀看影片。</p>
+          )}
         </div>
         <Link href="/login" className="btn-outline w-full">
           前往登入

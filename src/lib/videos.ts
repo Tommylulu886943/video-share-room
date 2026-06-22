@@ -58,6 +58,8 @@ export function parseRecordedOn(value: string | undefined): Date | null {
   return d;
 }
 
+export { extractDatePrefix } from "@/lib/dates";
+
 /** Fetch a YouTube video's title via the public oEmbed endpoint (no API key). */
 export async function fetchYouTubeTitle(
   youtubeId: string,

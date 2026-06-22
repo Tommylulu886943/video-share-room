@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
 import { videoBatchSchema, parseYouTubeId } from "@/lib/validation";
 import {
+  extractDatePrefix,
   fetchYouTubeTitle,
   validateAccessMemberships,
   validateCategory,
@@ -50,12 +51,16 @@ export const POST = route(
     let created = 0;
     for (let i = 0; i < valid.length; i++) {
       const { youtubeId } = valid[i];
+      const { recordedOn, title } = extractDatePrefix(
+        titles[i] ?? "未命名影片",
+      );
       try {
         await prisma.video.create({
           data: {
             tenantId: ctx.tenant.id,
             youtubeId,
-            title: titles[i] ?? "未命名影片",
+            title,
+            recordedOn,
             visibility: input.visibility,
             categoryId,
             uploadedById: session.id,

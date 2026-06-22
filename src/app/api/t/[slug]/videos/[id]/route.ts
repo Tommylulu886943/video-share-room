@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
 import { videoUpdateSchema, parseYouTubeId } from "@/lib/validation";
 import {
+  extractDatePrefix,
   parseRecordedOn,
   resolveVideoTitle,
   validateAccessMemberships,
@@ -43,10 +44,16 @@ export const PATCH = route(
       data.youtubeId = youtubeId;
     }
     if (input.title !== undefined) {
-      // Blank title → fall back to the (new or existing) YouTube title.
+      // Blank title → fall back to the (new or existing) YouTube title, then
+      // peel any leading YYMMDD date into recordedOn (unless one was given).
       const finalYoutubeId =
         (data.youtubeId as string | undefined) ?? video.youtubeId;
-      data.title = await resolveVideoTitle(input.title, finalYoutubeId);
+      const raw = await resolveVideoTitle(input.title, finalYoutubeId);
+      const { recordedOn: prefixDate, title } = extractDatePrefix(raw);
+      data.title = title;
+      if (input.recordedOn === undefined && prefixDate) {
+        data.recordedOn = prefixDate;
+      }
     }
     if (input.notes !== undefined) data.notes = input.notes || null;
     if (input.recordedOn !== undefined) {

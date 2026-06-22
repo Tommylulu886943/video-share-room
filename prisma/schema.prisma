@@ -19,6 +19,9 @@ model Tenant {
   name       String
   brandColor String   @default("#2563eb")
   brandLogo  String? // emoji or short text mark used as the club logo
+  // Registration gates (default off = applicants are auto-approved, no email).
+  requireEmailVerification Boolean @default(false)
+  requireApproval          Boolean @default(false)
   createdAt  DateTime @default(now())
 
   memberships Membership[]

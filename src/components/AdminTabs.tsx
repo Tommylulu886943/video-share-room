@@ -12,7 +12,7 @@ export function AdminTabs({ slug }: { slug: string }) {
     { label: "會員審核", href: root + "/members" },
     { label: "影片", href: root + "/videos" },
     { label: "分類與標籤", href: root + "/taxonomy" },
-    { label: "品牌", href: root + "/branding" },
+    { label: "設定", href: root + "/branding" },
   ];
 
   return (

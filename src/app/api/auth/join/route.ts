@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
 import {
+  computeApplicationStatus,
   notifyAdminOfApplication,
   sendVerificationEmail,
 } from "@/lib/members";
@@ -16,9 +17,10 @@ export const POST = route(async (req: Request) => {
   const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
   if (!tenant) throw new ApiError(404, "找不到社團");
 
-  const status = session.emailVerified
-    ? MembershipStatus.PENDING
-    : MembershipStatus.PENDING_VERIFICATION;
+  const { needsVerification, status } = computeApplicationStatus(
+    tenant,
+    session.emailVerified,
+  );
 
   const existing = await prisma.membership.findUnique({
     where: { userId_tenantId: { userId: session.id, tenantId: tenant.id } },
@@ -51,10 +53,10 @@ export const POST = route(async (req: Request) => {
         },
       });
 
-  if (status === MembershipStatus.PENDING) {
-    await notifyAdminOfApplication(membership.id);
-  } else {
+  if (needsVerification) {
     await sendVerificationEmail({ id: session.id, email: session.email }, name);
+  } else if (status === MembershipStatus.PENDING) {
+    await notifyAdminOfApplication(membership.id);
   }
 
   return jsonOk({ status });

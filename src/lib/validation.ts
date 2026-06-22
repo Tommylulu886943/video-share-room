@@ -115,6 +115,11 @@ export const brandingSchema = z.object({
   brandLogo: z.string().trim().max(8).or(z.literal("")).nullish(),
 });
 
+export const settingsSchema = z.object({
+  requireEmailVerification: z.boolean().optional(),
+  requireApproval: z.boolean().optional(),
+});
+
 /** Accept a full YouTube URL or a bare 11-char id; return the canonical id. */
 export function parseYouTubeId(input: string): string | null {
   const s = input.trim();

@@ -52,6 +52,11 @@ export default async function VideoPage({
       </div>
 
       <div className="mt-4">
+        {video.recordedOn && (
+          <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
+            {video.recordedOn.toISOString().slice(0, 10).replace(/-/g, "/")}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900">{video.title}</h1>
           {video.visibility === Visibility.RESTRICTED && (
@@ -71,12 +76,6 @@ export default async function VideoPage({
             </span>
           ))}
         </div>
-
-        {video.recordedOn && (
-          <p className="mt-2 text-sm text-slate-500">
-            拍攝日期：{video.recordedOn.toISOString().slice(0, 10)}
-          </p>
-        )}
 
         {video.notes && (
           <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">

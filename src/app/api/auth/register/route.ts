@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
-import { sendVerificationEmail } from "@/lib/members";
+import {
+  computeApplicationStatus,
+  notifyAdminOfApplication,
+  sendVerificationEmail,
+} from "@/lib/members";
+import { loadSessionUser, setSessionCookie } from "@/lib/session";
+import { landingPathFor } from "@/lib/nav";
 import { registerSchema } from "@/lib/validation";
 import { ApiError, jsonOk, readJson, route } from "@/lib/api";
 
@@ -26,26 +32,52 @@ export const POST = route(async (req: Request) => {
     throw new ApiError(409, "此帳號已被使用");
   }
 
+  const { needsVerification, status } = computeApplicationStatus(tenant, false);
+
   const passwordHash = await hashPassword(input.password);
-  const user = await prisma.user.create({
+  const membership = await prisma.membership.create({
     data: {
-      username: input.username,
-      email: input.email,
-      passwordHash,
-      emailVerified: false,
-      memberships: {
+      name: input.name,
+      level: input.level,
+      role: TenantRole.MEMBER,
+      status,
+      tenant: { connect: { id: tenant.id } },
+      user: {
         create: {
-          tenantId: tenant.id,
-          name: input.name,
-          level: input.level,
-          role: TenantRole.MEMBER,
-          status: MembershipStatus.PENDING_VERIFICATION,
+          username: input.username,
+          email: input.email,
+          passwordHash,
+          // If we're not verifying email, the account is usable immediately.
+          emailVerified: !needsVerification,
         },
       },
     },
+    include: { user: true },
   });
 
-  await sendVerificationEmail({ id: user.id, email: user.email }, input.name);
+  if (needsVerification) {
+    await sendVerificationEmail(
+      { id: membership.userId, email: membership.user.email },
+      input.name,
+    );
+    return jsonOk({ needsVerification: true, status });
+  }
 
-  return jsonOk({ needsVerification: true });
+  if (status === MembershipStatus.PENDING) {
+    await notifyAdminOfApplication(membership.id);
+    return jsonOk({ needsVerification: false, status });
+  }
+
+  // Auto-approved: log the user straight in.
+  await setSessionCookie({
+    sub: membership.userId,
+    username: membership.user.username,
+    platformRole: membership.user.platformRole,
+  });
+  const session = await loadSessionUser(membership.userId);
+  return jsonOk({
+    needsVerification: false,
+    status,
+    redirect: session ? landingPathFor(session) : `/t/${tenant.slug}`,
+  });
 });

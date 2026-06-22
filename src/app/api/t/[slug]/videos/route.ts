@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
 import { videoCreateSchema, parseYouTubeId } from "@/lib/validation";
 import {
+  extractDatePrefix,
   parseRecordedOn,
   resolveVideoTitle,
   validateAccessMemberships,
@@ -28,8 +29,11 @@ export const POST = route(
     const youtubeId = parseYouTubeId(input.youtube);
     if (!youtubeId) throw new ApiError(400, "無法辨識的 YouTube 連結或 ID");
 
-    // Blank title → use the YouTube video's own title.
-    const title = await resolveVideoTitle(input.title, youtubeId);
+    // Blank title → use the YouTube title; then peel any leading YYMMDD date.
+    const rawTitle = await resolveVideoTitle(input.title, youtubeId);
+    const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
+    const recordedOn =
+      parseRecordedOn(input.recordedOn || undefined) ?? prefixDate;
     const categoryId = await validateCategory(ctx.tenant.id, input.categoryId);
     const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
     const restricted = input.visibility === Visibility.RESTRICTED;
@@ -43,7 +47,7 @@ export const POST = route(
         youtubeId,
         title,
         notes: input.notes || null,
-        recordedOn: parseRecordedOn(input.recordedOn || undefined),
+        recordedOn,
         visibility: input.visibility,
         categoryId,
         uploadedById: session.id,

@@ -9,6 +9,25 @@ import {
 } from "@/lib/email";
 import { createEmailVerifyToken, emailVerifyLink } from "@/lib/tokens";
 
+/**
+ * Decide a new applicant's membership status from the tenant's gates.
+ * Both gates default off → applicants are auto-approved with no email.
+ */
+export function computeApplicationStatus(
+  tenant: { requireEmailVerification: boolean; requireApproval: boolean },
+  emailAlreadyVerified: boolean,
+): { needsVerification: boolean; status: string } {
+  const needsVerification =
+    tenant.requireEmailVerification && !emailAlreadyVerified;
+  if (needsVerification) {
+    return { needsVerification: true, status: MembershipStatus.PENDING_VERIFICATION };
+  }
+  if (tenant.requireApproval) {
+    return { needsVerification: false, status: MembershipStatus.PENDING };
+  }
+  return { needsVerification: false, status: MembershipStatus.APPROVED };
+}
+
 /** The approved ADMIN membership of a tenant (D3: exactly one per tenant). */
 export async function getTenantAdmin(tenantId: string) {
   return prisma.membership.findFirst({
@@ -62,19 +81,23 @@ export async function notifyAdminOfApplication(membershipId: string): Promise<vo
 }
 
 /**
- * After a user verifies their email, promote any of their
- * PENDING_VERIFICATION memberships to PENDING and notify each tenant admin.
+ * After a user verifies their email, advance any of their PENDING_VERIFICATION
+ * memberships: to PENDING (and notify the admin) when the tenant requires
+ * approval, otherwise straight to APPROVED.
  */
 export async function promoteVerifiedMemberships(userId: string): Promise<void> {
   const pending = await prisma.membership.findMany({
     where: { userId, status: MembershipStatus.PENDING_VERIFICATION },
+    include: { tenant: true },
   });
   for (const m of pending) {
-    await prisma.membership.update({
-      where: { id: m.id },
-      data: { status: MembershipStatus.PENDING },
-    });
-    await notifyAdminOfApplication(m.id);
+    const status = m.tenant.requireApproval
+      ? MembershipStatus.PENDING
+      : MembershipStatus.APPROVED;
+    await prisma.membership.update({ where: { id: m.id }, data: { status } });
+    if (status === MembershipStatus.PENDING) {
+      await notifyAdminOfApplication(m.id);
+    }
   }
 }
 

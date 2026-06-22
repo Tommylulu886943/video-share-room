@@ -44,6 +44,11 @@ export function VideoCard({
         )}
       </div>
       <div className="p-3">
+        {video.recordedOn && (
+          <p className="mb-0.5 text-xs font-semibold text-[var(--brand)]">
+            {video.recordedOn}
+          </p>
+        )}
         <h3 className="line-clamp-2 font-semibold text-slate-900">
           {video.title}
         </h3>
@@ -62,9 +67,6 @@ export function VideoCard({
             <span className="text-slate-400">+{video.tags.length - 3}</span>
           )}
         </div>
-        {video.recordedOn && (
-          <p className="mt-1.5 text-xs text-slate-400">{video.recordedOn}</p>
-        )}
       </div>
     </Link>
   );

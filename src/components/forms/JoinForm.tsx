@@ -35,9 +35,11 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
         form,
       );
       setMsg(
-        status === "PENDING"
-          ? "申請已送出，等待社團管理者審核。"
-          : "申請已送出，請先完成 email 驗證（請查看信箱）。",
+        status === "APPROVED"
+          ? "已成功加入！可從上方「進入社團」開始觀看。"
+          : status === "PENDING"
+            ? "申請已送出，等待社團管理者審核。"
+            : "申請已送出，請先完成 email 驗證（請查看信箱）。",
       );
       setForm((f) => ({ ...f, name: "", level: "" }));
       router.refresh();

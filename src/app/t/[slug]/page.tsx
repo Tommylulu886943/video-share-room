@@ -69,20 +69,15 @@ export default async function BoardPage({
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),
     recordedOn: v.recordedOn
-      ? v.recordedOn.toISOString().slice(0, 10)
+      ? v.recordedOn.toISOString().slice(0, 10).replace(/-/g, "/")
       : null,
   }));
 
   return (
     <main className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-5">
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{ctx.tenant.name}</h1>
-          <p className="text-sm text-slate-500">
-            {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
-          </p>
-        </div>
-      </div>
+      <p className="mb-3 text-sm text-slate-500">
+        {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
+      </p>
 
       <div className="card mb-5 p-4">
         <BoardFilters
