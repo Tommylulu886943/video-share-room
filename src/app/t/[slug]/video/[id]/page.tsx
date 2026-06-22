@@ -52,11 +52,12 @@ export default async function VideoPage({
       </div>
 
       <div className="mt-4">
-        {video.recordedOn && (
-          <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
-            {video.recordedOn.toISOString().slice(0, 10).replace(/-/g, "/")}
-          </p>
-        )}
+        <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
+          {(video.recordedOn ?? video.createdAt)
+            .toISOString()
+            .slice(0, 10)
+            .replace(/-/g, "/")}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900">{video.title}</h1>
           {video.visibility === Visibility.RESTRICTED && (

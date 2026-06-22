@@ -68,9 +68,11 @@ export default async function BoardPage({
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),
-    recordedOn: v.recordedOn
-      ? v.recordedOn.toISOString().slice(0, 10).replace(/-/g, "/")
-      : null,
+    // Show the recorded date if known, otherwise fall back to the upload date.
+    recordedOn: (v.recordedOn ?? v.createdAt)
+      .toISOString()
+      .slice(0, 10)
+      .replace(/-/g, "/"),
   }));
 
   return (
