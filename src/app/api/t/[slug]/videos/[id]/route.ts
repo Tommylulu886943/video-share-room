@@ -39,7 +39,8 @@ export const PATCH = route(
 
     const data: Prisma.VideoUpdateInput = {};
 
-    if (input.youtube !== undefined) {
+    if (input.youtube) {
+      // Only changes the video when a (non-empty) link/ID is provided.
       const youtubeId = parseYouTubeId(input.youtube);
       if (!youtubeId) throw new ApiError(400, "無法辨識的 YouTube 連結或 ID");
       data.youtubeId = youtubeId;

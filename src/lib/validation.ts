@@ -74,7 +74,10 @@ export const videoCreateSchema = z.object({
 });
 export type VideoCreateInput = z.infer<typeof videoCreateSchema>;
 
-export const videoUpdateSchema = videoCreateSchema.partial();
+export const videoUpdateSchema = videoCreateSchema.partial().extend({
+  // On edit, a blank YouTube field means "keep the existing video".
+  youtube: z.string().trim().optional().or(z.literal("")),
+});
 
 // Batch upload: many YouTube links/IDs sharing one set of category/tags/visibility.
 export const videoBatchSchema = z.object({
