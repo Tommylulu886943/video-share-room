@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { JoinForm } from "@/components/forms/JoinForm";
 import { LogoutButton } from "@/components/LogoutButton";
+import { Wordmark } from "@/components/Wordmark";
 import { StatusBadge } from "@/components/StatusBadge";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/session";
@@ -28,12 +29,7 @@ export default async function JoinPage() {
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-8">
       <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--brand)] text-base">
-            🎬
-          </span>
-          <span className="font-bold text-slate-900">Film Room</span>
-        </div>
+        <Wordmark size="md" />
         <div className="flex items-center gap-2 text-sm">
           {approved.length > 0 && (
             <Link href={`/t/${approved[0].tenantSlug}`} className="btn-outline">

@@ -55,10 +55,10 @@ npm run db:seed:prod
 | `TURSO_AUTH_TOKEN` | （步驟 1 的 token） |
 | `AUTH_SECRET` | `openssl rand -base64 48` 產生的隨機字串（**必填、≥32 字**，沒設正式環境會拒絕啟動） |
 | `APP_URL` | https://你的網域.vercel.app（email 驗證連結會用，務必填正式網域） |
-| `APP_NAME` | Film Room 影片室 |
+| `APP_NAME` | 場邊 Courtside |
 | `EMAIL_PROVIDER` | `resend` |
 | `RESEND_API_KEY` | 從 https://resend.com/api-keys 建立 |
-| `EMAIL_FROM` | Film Room \<onboarding@resend.dev\>（測試用）或你在 Resend 驗證過網域的寄件地址 |
+| `EMAIL_FROM` | 場邊 Courtside \<onboarding@resend.dev\>（測試用）或你在 Resend 驗證過網域的寄件地址 |
 
 4. Deploy。
 

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Film Room 影片室",
-  description: "運動社團影片平台 — 分類、標籤、分級觀看權限",
+  title: "場邊 Courtside",
+  description: "運動社團影片平台 — 最好的視角，留住每一球。",
 };
 
 export default function RootLayout({

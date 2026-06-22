@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { PlatformRole } from "@/lib/constants";
 import { LogoutButton } from "@/components/LogoutButton";
+import { Wordmark } from "@/components/Wordmark";
 
 export default async function AdminLayout({
   children,
@@ -18,7 +19,10 @@ export default async function AdminLayout({
       <header className="bg-slate-900 text-white">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-3 py-3 sm:px-5">
           <div className="flex items-center gap-4">
-            <span className="font-semibold">🎬 Film Room 平台管理</span>
+            <span className="flex items-center gap-2">
+              <Wordmark size="sm" theme="dark" />
+              <span className="hidden text-sm text-white/60 sm:inline">平台管理</span>
+            </span>
             <nav className="flex items-center gap-1 text-sm">
               <Link
                 href="/admin"

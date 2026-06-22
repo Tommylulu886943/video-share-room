@@ -45,11 +45,11 @@ export const env = {
   },
   sessionTtlSeconds: int("SESSION_TTL_SECONDS", 60 * 60 * 24 * 7),
   appUrl: str("APP_URL", "http://localhost:3000").replace(/\/$/, ""),
-  appName: str("APP_NAME", "Film Room 影片室"),
+  appName: str("APP_NAME", "場邊 Courtside"),
 
   email: {
     provider: str("EMAIL_PROVIDER", "console") as "console" | "smtp" | "resend",
-    from: str("EMAIL_FROM", "Film Room <onboarding@resend.dev>"),
+    from: str("EMAIL_FROM", "場邊 Courtside <onboarding@resend.dev>"),
     resendApiKey: process.env.RESEND_API_KEY ?? "",
     smtp: {
       host: process.env.SMTP_HOST ?? "",

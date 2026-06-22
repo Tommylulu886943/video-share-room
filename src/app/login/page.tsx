@@ -12,7 +12,7 @@ export default async function LoginPage() {
   return (
     <AuthLayout
       title="登入"
-      subtitle="輸入帳號密碼進入你的社團影片室"
+      subtitle="輸入帳號密碼進入你的社團"
       footer={
         <>
           還沒有帳號？{" "}
