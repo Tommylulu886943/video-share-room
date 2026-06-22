@@ -38,7 +38,11 @@ function resolveAuthSecret(): string {
 }
 
 export const env = {
-  authSecret: resolveAuthSecret(),
+  // Lazy: validated on first use (signing/verifying), not at import — so a build
+  // (or preview deploy) doesn't fail merely for lacking a runtime secret.
+  get authSecret(): string {
+    return resolveAuthSecret();
+  },
   sessionTtlSeconds: int("SESSION_TTL_SECONDS", 60 * 60 * 24 * 7),
   appUrl: str("APP_URL", "http://localhost:3000").replace(/\/$/, ""),
   appName: str("APP_NAME", "Film Room 影片室"),

@@ -4,7 +4,13 @@ import { env } from "@/lib/env";
 
 export const SESSION_COOKIE = "fr_session";
 
-const secretKey = new TextEncoder().encode(env.authSecret);
+// Resolve the signing key lazily so importing this module never requires the
+// secret (only signing/verifying a session does).
+let cachedKey: Uint8Array | null = null;
+function secretKey(): Uint8Array {
+  if (!cachedKey) cachedKey = new TextEncoder().encode(env.authSecret);
+  return cachedKey;
+}
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 10);
@@ -29,14 +35,14 @@ export async function signSession(claims: SessionClaims): Promise<string> {
     .setSubject(claims.sub)
     .setIssuedAt()
     .setExpirationTime(`${env.sessionTtlSeconds}s`)
-    .sign(secretKey);
+    .sign(secretKey());
 }
 
 export async function verifySessionToken(
   token: string,
 ): Promise<SessionClaims | null> {
   try {
-    const { payload } = await jwtVerify(token, secretKey, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
     if (!payload.sub) return null;
     return {
       sub: payload.sub,
