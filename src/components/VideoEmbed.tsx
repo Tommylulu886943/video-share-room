@@ -47,6 +47,7 @@ export function VideoEmbed({
           src={posterUrl}
           alt={title}
           onError={() => setBroken(true)}
+          referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
         />
       ) : (

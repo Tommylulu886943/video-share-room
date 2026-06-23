@@ -387,6 +387,7 @@ export function VideoManager({
                 <img
                   src={v.posterUrl}
                   alt={v.title}
+                  referrerPolicy="no-referrer"
                   className="aspect-video w-full object-cover"
                 />
               ) : (

@@ -33,6 +33,7 @@ export function VideoCard({
             src={video.posterUrl}
             alt={video.title}
             loading="lazy"
+            referrerPolicy="no-referrer"
             className="h-full w-full object-cover transition group-hover:scale-105"
           />
         ) : (
