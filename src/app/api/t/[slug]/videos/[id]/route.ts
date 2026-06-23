@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
-import { videoUpdateSchema, parseYouTubeId } from "@/lib/validation";
+import { videoUpdateSchema } from "@/lib/validation";
+import { parseVideoRef } from "@/lib/sources";
 import {
   extractDatePrefix,
   parseRecordedOn,
-  resolveVideoTitle,
+  resolveVideoMeta,
   validateAccessMemberships,
   validateCategory,
   validateTags,
@@ -39,20 +40,29 @@ export const PATCH = route(
 
     const data: Prisma.VideoUpdateInput = {};
 
+    // A non-empty link/ID switches the video (and source); blank = keep existing.
+    let finalSource = video.source;
+    let finalId = video.youtubeId;
+    const sourceChanged = Boolean(input.youtube);
     if (input.youtube) {
-      // Only changes the video when a (non-empty) link/ID is provided.
-      const youtubeId = parseYouTubeId(input.youtube);
-      if (!youtubeId) throw new ApiError(400, "無法辨識的 YouTube 連結或 ID");
-      data.youtubeId = youtubeId;
+      const ref = parseVideoRef(input.youtube);
+      if (!ref) throw new ApiError(400, "無法辨識的 YouTube 或 Bilibili 連結");
+      finalSource = ref.source;
+      finalId = ref.id;
+      data.source = ref.source;
+      data.youtubeId = ref.id;
     }
-    if (input.title !== undefined) {
-      // Blank title → fall back to the (new or existing) YouTube title, then
-      // peel any leading YYMMDD date into recordedOn (unless one was given).
-      const finalYoutubeId =
-        (data.youtubeId as string | undefined) ?? video.youtubeId;
-      const raw = await resolveVideoTitle(input.title, finalYoutubeId);
-      const { recordedOn: prefixDate, title } = extractDatePrefix(raw);
+    if (input.title !== undefined || sourceChanged) {
+      // Resolve the title (blank → the source's own); refresh the cover when the
+      // source changed; peel any leading YYMMDD date into recordedOn.
+      const { rawTitle, thumbnailUrl } = await resolveVideoMeta(
+        input.title ?? null,
+        finalSource,
+        finalId,
+      );
+      const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
       data.title = title;
+      if (sourceChanged) data.thumbnailUrl = thumbnailUrl;
       if (input.recordedOn === undefined && prefixDate) {
         data.recordedOn = prefixDate;
       }

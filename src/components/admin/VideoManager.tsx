@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPatch, apiDelete } from "@/lib/client";
 import { Visibility } from "@/lib/constants";
-import { youtubeThumb } from "@/lib/youtube";
 
 type VideoItem = {
   id: string;
   title: string;
   youtubeId: string;
+  posterUrl: string | null;
   visibility: string;
   categoryId: string | null;
   categoryLabel: string | null;
@@ -205,14 +205,14 @@ export function VideoManager({
 
           <div className="space-y-1">
             <label className="label" htmlFor="vm-youtube">
-              YouTube 連結或 ID
+              影片連結（YouTube / Bilibili）
             </label>
             <input
               id="vm-youtube"
               className="input"
               value={form.youtube}
               onChange={(e) => setForm({ ...form, youtube: e.target.value })}
-              placeholder="https://youtu.be/... 或影片 ID"
+              placeholder="貼上 YouTube 或 Bilibili 連結"
               required
             />
           </div>
@@ -382,12 +382,18 @@ export function VideoManager({
         <div className="grid gap-4 sm:grid-cols-2">
           {videos.map((v) => (
             <div key={v.id} className="card overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={youtubeThumb(v.youtubeId)}
-                alt={v.title}
-                className="aspect-video w-full object-cover"
-              />
+              {v.posterUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={v.posterUrl}
+                  alt={v.title}
+                  className="aspect-video w-full object-cover"
+                />
+              ) : (
+                <div className="grid aspect-video w-full place-items-center bg-slate-200 text-xs text-slate-500">
+                  無縮圖
+                </div>
+              )}
               <div className="space-y-2 p-3">
                 <h3 className="font-semibold">{v.title}</h3>
                 <div className="flex flex-wrap gap-1">

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { youtubeThumb } from "@/lib/youtube";
 import { Visibility } from "@/lib/constants";
+import { SOURCE_LABEL, type VideoSource } from "@/lib/sources";
 
 export interface VideoCardData {
   id: string;
   title: string;
-  youtubeId: string;
+  source: string;
+  posterUrl: string | null;
   visibility: string;
   categoryLabel: string | null;
   tags: string[];
@@ -19,23 +20,33 @@ export function VideoCard({
   video: VideoCardData;
   slug: string;
 }) {
+  const sourceLabel = SOURCE_LABEL[video.source as VideoSource] ?? video.source;
   return (
     <Link
       href={`/t/${slug}/video/${video.id}`}
       className="card group overflow-hidden transition hover:shadow-md"
     >
       <div className="relative aspect-video overflow-hidden bg-slate-100">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={youtubeThumb(video.youtubeId)}
-          alt={video.title}
-          loading="lazy"
-          className="h-full w-full object-cover transition group-hover:scale-105"
-        />
+        {video.posterUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={video.posterUrl}
+            alt={video.title}
+            loading="lazy"
+            className="h-full w-full object-cover transition group-hover:scale-105"
+          />
+        ) : (
+          <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-900 text-sm font-medium text-white/70">
+            {sourceLabel}
+          </div>
+        )}
         <span className="pointer-events-none absolute inset-0 grid place-items-center">
           <span className="grid h-12 w-12 place-items-center rounded-full bg-black/55 text-white opacity-90 transition group-hover:scale-110">
             ▶
           </span>
+        </span>
+        <span className="absolute right-2 top-2 chip bg-black/60 text-[10px] text-white">
+          {sourceLabel}
         </span>
         {video.visibility === Visibility.RESTRICTED && (
           <span className="chip absolute left-2 top-2 bg-black/70 text-white">

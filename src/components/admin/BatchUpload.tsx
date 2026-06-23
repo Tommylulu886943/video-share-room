@@ -91,7 +91,7 @@ export function BatchUpload({
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-1">
             <label className="label" htmlFor="batch-text">
-              YouTube 連結或 ID（每行一個，最多 50 部）
+              影片連結 YouTube / Bilibili（每行一個，最多 50 部）
             </label>
             <textarea
               id="batch-text"
@@ -99,10 +99,10 @@ export function BatchUpload({
               rows={6}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={"https://youtu.be/xxxxxxxxxxx\nhttps://www.youtube.com/watch?v=yyyyyyyyyyy\nzzzzzzzzzzz"}
+              placeholder={"https://youtu.be/xxxxxxxxxxx\nhttps://www.bilibili.com/video/BVxxxxxxxxxx"}
             />
             <p className="text-xs text-slate-500">
-              已輸入 {lines.length} 個・標題會自動帶入各影片的 YouTube 標題。
+              已輸入 {lines.length} 個・標題會自動帶入各影片的標題。
             </p>
           </div>
 

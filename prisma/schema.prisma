@@ -101,7 +101,9 @@ model Tag {
 model Video {
   id           String    @id @default(cuid())
   tenantId     String
-  youtubeId    String // YouTube video id (unlisted link per D11)
+  source       String    @default("youtube") // "youtube" | "bilibili"
+  youtubeId    String // external video id: YouTube id, or Bilibili BVID/av (see `source`)
+  thumbnailUrl String? // stored cover for sources without a derivable thumb (Bilibili)
   title        String
   notes        String?
   recordedOn   DateTime?

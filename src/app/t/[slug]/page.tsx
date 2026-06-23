@@ -3,6 +3,7 @@ import { VideoCard, type VideoCardData } from "@/components/VideoCard";
 import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
 import { viewableVideoWhere } from "@/lib/access";
+import { videoPoster } from "@/lib/sources";
 import {
   buildTree,
   categoryIdsForFilter,
@@ -64,7 +65,8 @@ export default async function BoardPage({
   const cards: VideoCardData[] = videos.map((v) => ({
     id: v.id,
     title: v.title,
-    youtubeId: v.youtubeId,
+    source: v.source,
+    posterUrl: videoPoster(v),
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),

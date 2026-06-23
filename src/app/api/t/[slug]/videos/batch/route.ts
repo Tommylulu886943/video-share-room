@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
-import { videoBatchSchema, parseYouTubeId } from "@/lib/validation";
+import { videoBatchSchema } from "@/lib/validation";
+import { parseVideoRef, type VideoSource } from "@/lib/sources";
 import {
   extractDatePrefix,
-  fetchYouTubeTitle,
+  resolveVideoMeta,
   validateAccessMemberships,
   validateCategory,
   validateTags,
@@ -34,32 +35,32 @@ export const POST = route(
       : [];
 
     const failed: { input: string; reason: string }[] = [];
-    const valid: { input: string; youtubeId: string }[] = [];
+    const valid: { input: string; source: VideoSource; id: string }[] = [];
     for (const raw of input.items) {
-      const youtubeId = parseYouTubeId(raw);
-      if (!youtubeId) {
-        failed.push({ input: raw, reason: "無法辨識的 YouTube 連結或 ID" });
+      const ref = parseVideoRef(raw);
+      if (!ref) {
+        failed.push({ input: raw, reason: "無法辨識的 YouTube 或 Bilibili 連結" });
       } else {
-        valid.push({ input: raw, youtubeId });
+        valid.push({ input: raw, source: ref.source, id: ref.id });
       }
     }
 
-    // Fetch YouTube titles concurrently (blank → falls back to placeholder).
-    const titles = await Promise.all(
-      valid.map((v) => fetchYouTubeTitle(v.youtubeId)),
+    // Fetch each source's title + cover concurrently.
+    const metas = await Promise.all(
+      valid.map((v) => resolveVideoMeta(undefined, v.source, v.id)),
     );
 
     let created = 0;
     for (let i = 0; i < valid.length; i++) {
-      const { youtubeId } = valid[i];
-      const { recordedOn, title } = extractDatePrefix(
-        titles[i] ?? "未命名影片",
-      );
+      const { source, id } = valid[i];
+      const { recordedOn, title } = extractDatePrefix(metas[i].rawTitle);
       try {
         await prisma.video.create({
           data: {
             tenantId: ctx.tenant.id,
-            youtubeId,
+            source,
+            youtubeId: id,
+            thumbnailUrl: metas[i].thumbnailUrl,
             title,
             recordedOn,
             visibility: input.visibility,

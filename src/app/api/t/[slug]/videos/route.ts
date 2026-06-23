@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/db";
 import { Visibility } from "@/lib/constants";
-import { videoCreateSchema, parseYouTubeId } from "@/lib/validation";
+import { videoCreateSchema } from "@/lib/validation";
+import { parseVideoRef } from "@/lib/sources";
 import {
   extractDatePrefix,
   parseRecordedOn,
-  resolveVideoTitle,
+  resolveVideoMeta,
   validateAccessMemberships,
   validateCategory,
   validateTags,
@@ -27,11 +28,15 @@ export const POST = route(
     const { session, ctx } = await requireTenantContext(slug, { upload: true });
     const input = videoCreateSchema.parse(await readJson(req));
 
-    const youtubeId = parseYouTubeId(input.youtube);
-    if (!youtubeId) throw new ApiError(400, "無法辨識的 YouTube 連結或 ID");
+    const ref = parseVideoRef(input.youtube);
+    if (!ref) throw new ApiError(400, "無法辨識的 YouTube 或 Bilibili 連結");
 
-    // Blank title → use the YouTube title; then peel any leading YYMMDD date.
-    const rawTitle = await resolveVideoTitle(input.title, youtubeId);
+    // Blank title → use the source's own title; then peel any leading YYMMDD date.
+    const { rawTitle, thumbnailUrl } = await resolveVideoMeta(
+      input.title,
+      ref.source,
+      ref.id,
+    );
     const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
     const recordedOn =
       parseRecordedOn(input.recordedOn || undefined) ?? prefixDate;
@@ -45,7 +50,9 @@ export const POST = route(
     const video = await prisma.video.create({
       data: {
         tenantId: ctx.tenant.id,
-        youtubeId,
+        source: ref.source,
+        youtubeId: ref.id,
+        thumbnailUrl,
         title,
         notes: input.notes || null,
         recordedOn,

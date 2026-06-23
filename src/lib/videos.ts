@@ -79,15 +79,54 @@ export async function fetchYouTubeTitle(
   }
 }
 
+/** Fetch a Bilibili video's title + cover via the public view API (no key). */
+export async function fetchBilibiliMeta(
+  id: string,
+): Promise<{ title: string | null; thumbnailUrl: string | null }> {
+  try {
+    const ref = id.toLowerCase().startsWith("av")
+      ? `aid=${id.slice(2)}`
+      : `bvid=${id}`;
+    const res = await fetch(
+      `https://api.bilibili.com/x/web-interface/view?${ref}`,
+      { headers: { "user-agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return { title: null, thumbnailUrl: null };
+    const data = (await res.json()) as {
+      code?: number;
+      data?: { title?: unknown; pic?: unknown };
+    };
+    if (data.code !== 0 || !data.data) return { title: null, thumbnailUrl: null };
+    const title =
+      typeof data.data.title === "string" && data.data.title.trim()
+        ? data.data.title.trim().slice(0, 140)
+        : null;
+    let pic = typeof data.data.pic === "string" ? data.data.pic : null;
+    // Force https so the cover isn't blocked as mixed content on our https site.
+    if (pic?.startsWith("http://")) pic = `https://${pic.slice(7)}`;
+    return { title, thumbnailUrl: pic };
+  } catch {
+    return { title: null, thumbnailUrl: null };
+  }
+}
+
 /**
- * Pick the video title: use the admin-provided title, otherwise fall back to
- * the YouTube title, otherwise a placeholder.
+ * Resolve a video's title + stored thumbnail. Title prefers the admin-provided
+ * one, else the source's own title, else a placeholder. thumbnailUrl is stored
+ * only for sources without a derivable thumb (Bilibili); YouTube derives from id.
  */
-export async function resolveVideoTitle(
+export async function resolveVideoMeta(
   provided: string | null | undefined,
-  youtubeId: string,
-): Promise<string> {
-  const trimmed = provided?.trim();
-  if (trimmed) return trimmed.slice(0, 140);
-  return (await fetchYouTubeTitle(youtubeId)) ?? "未命名影片";
+  source: string,
+  id: string,
+): Promise<{ rawTitle: string; thumbnailUrl: string | null }> {
+  const given = provided?.trim()?.slice(0, 140) || null;
+  if (source === "bilibili") {
+    // Always fetch — we need the cover even when a title was supplied.
+    const meta = await fetchBilibiliMeta(id);
+    return { rawTitle: given || meta.title || "未命名影片", thumbnailUrl: meta.thumbnailUrl };
+  }
+  // YouTube: only fetch the title when none was supplied; thumb derives from id.
+  const rawTitle = given || (await fetchYouTubeTitle(id)) || "未命名影片";
+  return { rawTitle, thumbnailUrl: null };
 }

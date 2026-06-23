@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
 import { canViewVideo } from "@/lib/access";
-import { YouTubePlayer } from "@/components/YouTubePlayer";
-import { youtubeWatch } from "@/lib/youtube";
+import { VideoEmbed } from "@/components/VideoEmbed";
+import { videoPoster, videoWatchUrl, SOURCE_LABEL, type VideoSource } from "@/lib/sources";
 import { Visibility } from "@/lib/constants";
 
 export default async function VideoPage({
@@ -47,7 +47,12 @@ export default async function VideoPage({
 
       <div className="overflow-hidden rounded-xl bg-black shadow-sm">
         <div className="relative aspect-video">
-          <YouTubePlayer id={video.youtubeId} title={video.title} />
+          <VideoEmbed
+            source={video.source}
+            videoId={video.youtubeId}
+            title={video.title}
+            posterUrl={videoPoster(video)}
+          />
         </div>
       </div>
 
@@ -86,12 +91,12 @@ export default async function VideoPage({
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
           <a
-            href={youtubeWatch(video.youtubeId)}
+            href={videoWatchUrl(video.source, video.youtubeId)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-500 underline hover:text-slate-800"
           >
-            在 YouTube 開啟
+            在 {SOURCE_LABEL[video.source as VideoSource] ?? video.source} 開啟
           </a>
           {ctx.isAdmin && (
             <Link

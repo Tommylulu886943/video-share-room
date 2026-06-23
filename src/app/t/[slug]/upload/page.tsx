@@ -2,6 +2,7 @@ import { pageTenantContext } from "@/lib/page";
 import { prisma } from "@/lib/db";
 import { getFlatCategories, buildTree, categoryLabel } from "@/lib/categories";
 import { MembershipStatus } from "@/lib/constants";
+import { videoPoster } from "@/lib/sources";
 import { VideoManager } from "@/components/admin/VideoManager";
 import { BatchUpload } from "@/components/admin/BatchUpload";
 
@@ -42,6 +43,7 @@ export default async function UploadPage({
     id: v.id,
     title: v.title,
     youtubeId: v.youtubeId,
+    posterUrl: videoPoster(v),
     visibility: v.visibility,
     categoryId: v.categoryId,
     categoryLabel: categoryLabel(flat, v.categoryId),
