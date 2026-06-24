@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPatch, apiDelete } from "@/lib/client";
 import { Visibility } from "@/lib/constants";
@@ -74,10 +74,34 @@ export function VideoManager({
     setError(null);
   }
 
+  function closeModal() {
+    resetForm();
+    setOpen(false);
+  }
+
   function startCreate() {
     resetForm();
     setOpen(true);
   }
+
+  // While the modal is open: close on Escape and lock background scroll so the
+  // list keeps its position.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        resetForm();
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
 
   function startEdit(v: VideoItem) {
     setForm({
@@ -166,27 +190,34 @@ export function VideoManager({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">共 {videos.length} 部影片</p>
-        <button
-          type="button"
-          className="btn-brand"
-          onClick={() => {
-            if (open && !editingId) {
-              setOpen(false);
-              resetForm();
-            } else {
-              startCreate();
-            }
-          }}
-        >
+        <button type="button" className="btn-brand" onClick={startCreate}>
           ＋ 新增影片
         </button>
       </div>
 
       {open && (
-        <form onSubmit={handleSubmit} className="card space-y-4 p-4">
-          <h2 className="text-lg font-semibold">
-            {editingId ? "編輯影片" : "新增影片"}
-          </h2>
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
+          onClick={closeModal}
+        >
+          <form
+            onSubmit={handleSubmit}
+            onClick={(e) => e.stopPropagation()}
+            className="card my-8 w-full max-w-2xl space-y-4 p-5"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                {editingId ? "編輯影片" : "新增影片"}
+              </h2>
+              <button
+                type="button"
+                onClick={closeModal}
+                aria-label="關閉"
+                className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
 
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -378,22 +409,16 @@ export function VideoManager({
             />
           </div>
 
-          <div className="flex gap-2">
-            <button type="submit" className="btn-brand" disabled={submitting}>
-              {submitting ? "儲存中…" : editingId ? "更新影片" : "新增影片"}
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => {
-                resetForm();
-                setOpen(false);
-              }}
-            >
-              取消
-            </button>
-          </div>
-        </form>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-brand" disabled={submitting}>
+                {submitting ? "儲存中…" : editingId ? "更新影片" : "新增影片"}
+              </button>
+              <button type="button" className="btn-ghost" onClick={closeModal}>
+                取消
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {videos.length === 0 ? (
