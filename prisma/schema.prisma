@@ -22,6 +22,9 @@ model Tenant {
   // Registration gates (default off = applicants are auto-approved, no email).
   requireEmailVerification Boolean @default(false)
   requireApproval          Boolean @default(false)
+  // Category pre-selected on the board (null = show all). Plain id; the board
+  // falls back to "all" if it no longer points to a live category.
+  defaultCategoryId String?
   createdAt  DateTime @default(now())
 
   memberships Membership[]

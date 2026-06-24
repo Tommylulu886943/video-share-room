@@ -28,7 +28,6 @@ export default async function BoardPage({
   const { ctx } = await pageTenantContext(slug);
   const sp = await searchParams;
 
-  const catId = sp.cat ?? "";
   const tagIds = asArray(sp.tag);
   const q = (sp.q ?? "").trim();
 
@@ -40,6 +39,18 @@ export default async function BoardPage({
       select: { id: true, name: true },
     }),
   ]);
+
+  // Category selection: no `cat` param → the tenant's default category;
+  // `cat=all` → show everything; otherwise the given id. Fall back to "all"
+  // if the resolved id no longer points to a live category.
+  const rawCat = Array.isArray(sp.cat) ? sp.cat[0] : sp.cat;
+  let catId =
+    rawCat === undefined
+      ? (ctx.tenant.defaultCategoryId ?? "")
+      : rawCat === "all"
+        ? ""
+        : rawCat;
+  if (catId && !flatCategories.some((c) => c.id === catId)) catId = "";
 
   // Compose the where clause: access gate + category + tags + keyword.
   const filters: Prisma.VideoWhereInput[] = [viewableVideoWhere(ctx)];

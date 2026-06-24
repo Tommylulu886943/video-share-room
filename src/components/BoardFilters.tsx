@@ -22,7 +22,9 @@ export function BoardFilters({
 }) {
   const router = useRouter();
   const [q, setQ] = useState(selected.q);
-  const [catId, setCatId] = useState(selected.catId);
+  // "" (show all) maps to the explicit "all" value in the dropdown/URL, so that
+  // selecting 全部分類 overrides a configured default category.
+  const [catId, setCatId] = useState(selected.catId || "all");
   const [tagIds, setTagIds] = useState<string[]>(selected.tagIds);
 
   function push(next: { q: string; catId: string; tagIds: string[] }) {
@@ -49,9 +51,9 @@ export function BoardFilters({
 
   function clearAll() {
     setQ("");
-    setCatId("");
+    setCatId("all");
     setTagIds([]);
-    router.push(basePath);
+    push({ q: "", catId: "all", tagIds: [] });
   }
 
   // Debounced keyword search.
@@ -62,7 +64,7 @@ export function BoardFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const hasFilters = Boolean(q || catId || tagIds.length);
+  const hasFilters = Boolean(q || (catId && catId !== "all") || tagIds.length);
 
   return (
     <div className="space-y-3">
@@ -83,7 +85,7 @@ export function BoardFilters({
           value={catId}
           onChange={(e) => selectCat(e.target.value)}
         >
-          <option value="">全部分類</option>
+          <option value="all">全部分類</option>
           {categories.map((c) => (
             <optgroup key={c.id} label={c.name}>
               <option value={c.id}>{c.name}（全部）</option>

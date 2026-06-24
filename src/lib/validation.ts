@@ -128,6 +128,8 @@ export const brandingSchema = z.object({
 export const settingsSchema = z.object({
   requireEmailVerification: z.boolean().optional(),
   requireApproval: z.boolean().optional(),
+  // Category id, or "" / null to clear the default (show all).
+  defaultCategoryId: z.string().min(1).or(z.literal("")).nullish(),
 });
 
 /** Accept a full YouTube URL or a bare 11-char id; return the canonical id. */
