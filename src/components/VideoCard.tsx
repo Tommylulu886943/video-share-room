@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Visibility } from "@/lib/constants";
-import { SOURCE_LABEL, type VideoSource } from "@/lib/sources";
+import { SOURCE_LABEL, sourceGradient, type VideoSource } from "@/lib/sources";
 
 export interface VideoCardData {
   id: string;
@@ -37,7 +37,9 @@ export function VideoCard({
             className="h-full w-full object-cover transition group-hover:scale-105"
           />
         ) : (
-          <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-900 text-sm font-medium text-white/70">
+          <div
+            className={`grid h-full w-full place-items-center text-sm font-semibold text-white/90 ${sourceGradient(video.source)}`}
+          >
             {sourceLabel}
           </div>
         )}

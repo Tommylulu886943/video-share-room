@@ -121,6 +121,11 @@ export async function resolveVideoMeta(
   id: string,
 ): Promise<{ rawTitle: string; thumbnailUrl: string | null }> {
   const given = provided?.trim()?.slice(0, 140) || null;
+  if (source === "instagram") {
+    // Instagram's metadata API needs a Meta token and covers are signed/expiring,
+    // so there's no reliable auto title/thumbnail — rely on the embed + placeholder.
+    return { rawTitle: given || "未命名影片", thumbnailUrl: null };
+  }
   if (source === "bilibili") {
     // Always fetch — we need the cover even when a title was supplied.
     const meta = await fetchBilibiliMeta(id);

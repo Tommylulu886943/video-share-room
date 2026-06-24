@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { videoEmbed, SOURCE_LABEL, type VideoSource } from "@/lib/sources";
+import {
+  videoEmbed,
+  sourceGradient,
+  SOURCE_LABEL,
+  type VideoSource,
+} from "@/lib/sources";
 
 /**
  * Click-to-load facade for any supported source (YouTube / Bilibili): paints the
@@ -51,7 +56,9 @@ export function VideoEmbed({
           className="h-full w-full object-cover"
         />
       ) : (
-        <div className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-700 to-slate-900 text-white/70">
+        <div
+          className={`grid h-full w-full place-items-center font-semibold text-white/90 ${sourceGradient(source)}`}
+        >
           {label}
         </div>
       )}

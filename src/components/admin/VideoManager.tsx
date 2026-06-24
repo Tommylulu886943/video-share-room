@@ -205,14 +205,14 @@ export function VideoManager({
 
           <div className="space-y-1">
             <label className="label" htmlFor="vm-youtube">
-              影片連結（YouTube / Bilibili）
+              影片連結（YouTube / Bilibili / Instagram）
             </label>
             <input
               id="vm-youtube"
               className="input"
               value={form.youtube}
               onChange={(e) => setForm({ ...form, youtube: e.target.value })}
-              placeholder="貼上 YouTube 或 Bilibili 連結"
+              placeholder="貼上 YouTube / Bilibili / Instagram Reel 連結"
               required
             />
           </div>

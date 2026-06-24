@@ -91,7 +91,7 @@ export function BatchUpload({
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-1">
             <label className="label" htmlFor="batch-text">
-              影片連結 YouTube / Bilibili（每行一個，最多 50 部）
+              影片連結 YouTube / Bilibili / Instagram（每行一個，最多 50 部）
             </label>
             <textarea
               id="batch-text"

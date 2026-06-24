@@ -1,11 +1,12 @@
 // Video source abstraction (YouTube + Bilibili). Pure module (no deps) so it can
 // be imported by server code and standalone scripts alike.
 
-export type VideoSource = "youtube" | "bilibili";
+export type VideoSource = "youtube" | "bilibili" | "instagram";
 
 export const SOURCE_LABEL: Record<VideoSource, string> = {
   youtube: "YouTube",
   bilibili: "Bilibili",
+  instagram: "Instagram",
 };
 
 function parseYouTube(s: string): string | null {
@@ -47,6 +48,21 @@ function parseBilibili(s: string): string | null {
   return null;
 }
 
+function parseInstagram(s: string): string | null {
+  try {
+    const url = new URL(s);
+    const host = url.hostname.replace(/^www\./, "").replace(/^m\./, "");
+    if (host === "instagram.com") {
+      // /reel/{shortcode}/, /reels/, /p/, /tv/
+      const m = url.pathname.match(/\/(?:reels?|p|tv)\/([A-Za-z0-9_-]+)/);
+      if (m) return m[1];
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 /** Detect the source + canonical id from a URL or bare id. */
 export function parseVideoRef(
   input: string,
@@ -56,6 +72,8 @@ export function parseVideoRef(
   if (yt) return { source: "youtube", id: yt };
   const bv = parseBilibili(s);
   if (bv) return { source: "bilibili", id: bv };
+  const ig = parseInstagram(s);
+  if (ig) return { source: "instagram", id: ig };
   return null;
 }
 
@@ -75,12 +93,31 @@ export function videoEmbed(
       : `bvid=${id}`;
     return `https://player.bilibili.com/player.html?${ref}&page=1&high_quality=1&danmaku=0&autoplay=${autoplay ? 1 : 0}`;
   }
+  if (source === "instagram") {
+    // Instagram's public embed iframe (no autoplay control available).
+    return `https://www.instagram.com/reel/${id}/embed/`;
+  }
   return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1${autoplay ? "&autoplay=1" : ""}`;
 }
 
 export function videoWatchUrl(source: string, id: string): string {
   if (source === "bilibili") return `https://www.bilibili.com/video/${id}`;
+  if (source === "instagram") return `https://www.instagram.com/reel/${id}/`;
   return `https://www.youtube.com/watch?v=${id}`;
+}
+
+/** Vertical sources (e.g. Reels) want a portrait player frame. */
+export function isPortraitSource(source: string): boolean {
+  return source === "instagram";
+}
+
+/** Branded gradient for the placeholder shown when there's no poster. */
+export function sourceGradient(source: string): string {
+  if (source === "instagram")
+    return "bg-gradient-to-br from-fuchsia-600 via-rose-500 to-amber-400";
+  if (source === "bilibili")
+    return "bg-gradient-to-br from-sky-500 to-pink-500";
+  return "bg-gradient-to-br from-slate-700 to-slate-900";
 }
 
 /**

@@ -4,7 +4,13 @@ import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
 import { canViewVideo } from "@/lib/access";
 import { VideoEmbed } from "@/components/VideoEmbed";
-import { videoPoster, videoWatchUrl, SOURCE_LABEL, type VideoSource } from "@/lib/sources";
+import {
+  videoPoster,
+  videoWatchUrl,
+  isPortraitSource,
+  SOURCE_LABEL,
+  type VideoSource,
+} from "@/lib/sources";
 import { Visibility } from "@/lib/constants";
 
 export default async function VideoPage({
@@ -45,8 +51,14 @@ export default async function VideoPage({
         ← 返回影片牆
       </Link>
 
-      <div className="overflow-hidden rounded-xl bg-black shadow-sm">
-        <div className="relative aspect-video">
+      <div
+        className={`overflow-hidden rounded-xl bg-black shadow-sm ${
+          isPortraitSource(video.source) ? "mx-auto w-full max-w-[460px]" : ""
+        }`}
+      >
+        <div
+          className={`relative ${isPortraitSource(video.source) ? "aspect-[9/16]" : "aspect-video"}`}
+        >
           <VideoEmbed
             source={video.source}
             videoId={video.youtubeId}
