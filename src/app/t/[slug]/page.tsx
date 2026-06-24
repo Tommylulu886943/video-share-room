@@ -66,6 +66,7 @@ export default async function BoardPage({
     id: v.id,
     title: v.title,
     source: v.source,
+    videoId: v.youtubeId,
     posterUrl: videoPoster(v),
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),

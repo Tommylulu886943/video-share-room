@@ -111,6 +111,19 @@ export function isPortraitSource(source: string): boolean {
   return source === "instagram";
 }
 
+/**
+ * Sources that can play a muted, autoplay preview on hover. Only YouTube allows
+ * reliable muted autoplay in an iframe; Bilibili/Instagram block it.
+ */
+export function supportsHoverPreview(source: string): boolean {
+  return source === "youtube";
+}
+
+/** Muted, looped, chrome-free embed for hover previews. */
+export function videoPreviewEmbed(source: string, id: string): string {
+  return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${id}&rel=0&modestbranding=1&playsinline=1`;
+}
+
 /** Branded gradient for the placeholder shown when there's no poster. */
 export function sourceGradient(source: string): string {
   if (source === "instagram")
