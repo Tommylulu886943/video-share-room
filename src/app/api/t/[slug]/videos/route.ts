@@ -32,11 +32,13 @@ export const POST = route(
     if (!ref) throw new ApiError(400, "無法辨識的 YouTube 或 Bilibili 連結");
 
     // Blank title → use the source's own title; then peel any leading YYMMDD date.
-    const { rawTitle, thumbnailUrl } = await resolveVideoMeta(
+    const { rawTitle, thumbnailUrl: autoThumb } = await resolveVideoMeta(
       input.title,
       ref.source,
       ref.id,
     );
+    // A manually supplied cover URL wins over the auto-fetched one.
+    const thumbnailUrl = input.thumbnailUrl?.trim() || autoThumb;
     const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
     const recordedOn =
       parseRecordedOn(input.recordedOn || undefined) ?? prefixDate;

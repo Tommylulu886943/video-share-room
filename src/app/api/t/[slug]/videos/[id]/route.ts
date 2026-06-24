@@ -67,6 +67,10 @@ export const PATCH = route(
         data.recordedOn = prefixDate;
       }
     }
+    // Manual cover URL wins; empty clears it (back to auto/placeholder).
+    if (input.thumbnailUrl !== undefined) {
+      data.thumbnailUrl = input.thumbnailUrl?.trim() || null;
+    }
     if (input.notes !== undefined) data.notes = input.notes || null;
     if (input.recordedOn !== undefined) {
       data.recordedOn = parseRecordedOn(input.recordedOn || undefined);

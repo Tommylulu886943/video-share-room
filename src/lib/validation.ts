@@ -65,6 +65,13 @@ export const videoCreateSchema = z.object({
   // Optional — when blank the YouTube title is used (see resolveVideoTitle).
   title: z.string().trim().max(140).optional().or(z.literal("")),
   youtube: z.string().trim().min(1, "請填寫 YouTube 連結或 ID"),
+  // Optional custom cover image URL (overrides the auto-fetched one).
+  thumbnailUrl: z
+    .string()
+    .trim()
+    .url("封面圖網址格式不正確")
+    .or(z.literal(""))
+    .nullish(),
   notes: z.string().trim().max(2000).or(z.literal("")).nullish(),
   recordedOn: z.string().trim().or(z.literal("")).nullish(),
   categoryId: z.string().min(1).nullish(),

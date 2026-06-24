@@ -10,6 +10,7 @@ type VideoItem = {
   title: string;
   youtubeId: string;
   posterUrl: string | null;
+  thumbnailUrl: string | null;
   visibility: string;
   categoryId: string | null;
   categoryLabel: string | null;
@@ -43,6 +44,7 @@ type Props = {
 const emptyForm = {
   title: "",
   youtube: "",
+  thumbnailUrl: "",
   catId: "",
   tagIds: [] as string[],
   visibility: Visibility.PUBLIC as string,
@@ -81,6 +83,7 @@ export function VideoManager({
     setForm({
       title: v.title,
       youtube: v.youtubeId,
+      thumbnailUrl: v.thumbnailUrl ?? "",
       catId: v.categoryId ?? "",
       tagIds: [...v.tagIds],
       visibility: v.visibility,
@@ -118,6 +121,7 @@ export function VideoManager({
     const body = {
       title: form.title,
       youtube: form.youtube,
+      thumbnailUrl: form.thumbnailUrl,
       notes: form.notes,
       recordedOn: form.recordedOn || null,
       categoryId: form.catId || null,
@@ -215,6 +219,22 @@ export function VideoManager({
               placeholder="貼上 YouTube / Bilibili / Instagram Reel 連結"
               required
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="label" htmlFor="vm-thumb">
+              封面圖網址（選填）
+            </label>
+            <input
+              id="vm-thumb"
+              className="input"
+              value={form.thumbnailUrl}
+              onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })}
+              placeholder="https://…/cover.jpg"
+            />
+            <p className="text-xs text-slate-500">
+              Instagram 影片建議填(影片牆縮圖用);留空時 YouTube／Bilibili 會自動取得封面。
+            </p>
           </div>
 
           <div className="space-y-1">
