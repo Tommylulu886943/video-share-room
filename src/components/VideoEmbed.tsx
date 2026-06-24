@@ -23,7 +23,9 @@ export function VideoEmbed({
   title: string;
   posterUrl: string | null;
 }) {
-  const [playing, setPlaying] = useState(false);
+  // Instagram has no usable poster, and its own embed shows the cover + play —
+  // so load it directly (one click on IG's player) instead of our facade.
+  const [playing, setPlaying] = useState(source === "instagram");
   const [broken, setBroken] = useState(false);
   const label = SOURCE_LABEL[source as VideoSource] ?? source;
 
