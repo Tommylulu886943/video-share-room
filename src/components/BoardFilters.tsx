@@ -18,7 +18,7 @@ export function BoardFilters({
   basePath: string;
   categories: CatNode[];
   tags: { id: string; name: string }[];
-  selected: { catId: string; tagIds: string[]; q: string };
+  selected: { catId: string; tagIds: string[]; q: string; sort: string };
 }) {
   const router = useRouter();
   const [q, setQ] = useState(selected.q);
@@ -26,19 +26,31 @@ export function BoardFilters({
   // selecting 全部分類 overrides a configured default category.
   const [catId, setCatId] = useState(selected.catId || "all");
   const [tagIds, setTagIds] = useState<string[]>(selected.tagIds);
+  const [sort, setSort] = useState(selected.sort || "new");
 
-  function push(next: { q: string; catId: string; tagIds: string[] }) {
+  function push(next: {
+    q: string;
+    catId: string;
+    tagIds: string[];
+    sort: string;
+  }) {
     const p = new URLSearchParams();
     if (next.q.trim()) p.set("q", next.q.trim());
     if (next.catId) p.set("cat", next.catId);
     next.tagIds.forEach((t) => p.append("tag", t));
+    if (next.sort && next.sort !== "new") p.set("sort", next.sort);
     const qs = p.toString();
     router.push(qs ? `${basePath}?${qs}` : basePath);
   }
 
   function selectCat(id: string) {
     setCatId(id);
-    push({ q, catId: id, tagIds });
+    push({ q, catId: id, tagIds, sort });
+  }
+
+  function selectSort(s: string) {
+    setSort(s);
+    push({ q, catId, tagIds, sort: s });
   }
 
   function toggleTag(id: string) {
@@ -46,20 +58,21 @@ export function BoardFilters({
       ? tagIds.filter((x) => x !== id)
       : [...tagIds, id];
     setTagIds(next);
-    push({ q, catId, tagIds: next });
+    push({ q, catId, tagIds: next, sort });
   }
 
   function clearAll() {
     setQ("");
     setCatId("all");
     setTagIds([]);
-    push({ q: "", catId: "all", tagIds: [] });
+    setSort("new");
+    push({ q: "", catId: "all", tagIds: [], sort: "new" });
   }
 
   // Debounced keyword search.
   useEffect(() => {
     if (q === selected.q) return;
-    const t = setTimeout(() => push({ q, catId, tagIds }), 350);
+    const t = setTimeout(() => push({ q, catId, tagIds, sort }), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
@@ -96,6 +109,17 @@ export function BoardFilters({
               ))}
             </optgroup>
           ))}
+        </select>
+        <select
+          className="input sm:w-40"
+          value={sort}
+          onChange={(e) => selectSort(e.target.value)}
+          aria-label="排序"
+        >
+          <option value="new">最新加入</option>
+          <option value="date_desc">日期（新→舊）</option>
+          <option value="date_asc">日期（舊→新）</option>
+          <option value="views">觀看次數</option>
         </select>
       </div>
 

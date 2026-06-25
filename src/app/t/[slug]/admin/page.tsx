@@ -2,6 +2,7 @@ import Link from "next/link";
 import { pageTenantContext } from "@/lib/page";
 import { prisma } from "@/lib/db";
 import { MembershipStatus } from "@/lib/constants";
+import { startOfTodayTaipei } from "@/lib/time";
 
 export default async function AdminDashboardPage({
   params,
@@ -12,18 +13,36 @@ export default async function AdminDashboardPage({
   const { ctx } = await pageTenantContext(slug, { admin: true });
   const tenantId = ctx.tenant.id;
 
-  const [pendingMembers, approvedMembers, videos, categories, tags] =
-    await Promise.all([
-      prisma.membership.count({
-        where: { tenantId, status: MembershipStatus.PENDING },
-      }),
-      prisma.membership.count({
-        where: { tenantId, status: MembershipStatus.APPROVED },
-      }),
-      prisma.video.count({ where: { tenantId } }),
-      prisma.category.count({ where: { tenantId } }),
-      prisma.tag.count({ where: { tenantId } }),
-    ]);
+  const todayStart = startOfTodayTaipei();
+
+  const [
+    pendingMembers,
+    approvedMembers,
+    videos,
+    categories,
+    tags,
+    onlineToday,
+    viewAgg,
+  ] = await Promise.all([
+    prisma.membership.count({
+      where: { tenantId, status: MembershipStatus.PENDING },
+    }),
+    prisma.membership.count({
+      where: { tenantId, status: MembershipStatus.APPROVED },
+    }),
+    prisma.video.count({ where: { tenantId } }),
+    prisma.category.count({ where: { tenantId } }),
+    prisma.tag.count({ where: { tenantId } }),
+    prisma.membership.count({
+      where: {
+        tenantId,
+        status: MembershipStatus.APPROVED,
+        user: { lastSeenAt: { gte: todayStart } },
+      },
+    }),
+    prisma.video.aggregate({ where: { tenantId }, _sum: { viewCount: true } }),
+  ]);
+  const totalViews = viewAgg._sum.viewCount ?? 0;
 
   const membersHref = "/t/" + slug + "/admin/members";
   const videosHref = "/t/" + slug + "/admin/videos";
@@ -53,6 +72,11 @@ export default async function AdminDashboardPage({
         </Link>
 
         <div className="card p-4">
+          <div className="text-2xl font-bold text-green-600">{onlineToday}</div>
+          <div className="mt-1 text-sm text-slate-600">今日上線</div>
+        </div>
+
+        <div className="card p-4">
           <div className="text-2xl font-bold text-slate-900">
             {approvedMembers}
           </div>
@@ -62,6 +86,13 @@ export default async function AdminDashboardPage({
         <div className="card p-4">
           <div className="text-2xl font-bold text-slate-900">{videos}</div>
           <div className="mt-1 text-sm text-slate-600">影片</div>
+        </div>
+
+        <div className="card p-4">
+          <div className="text-2xl font-bold text-slate-900">
+            {totalViews.toLocaleString()}
+          </div>
+          <div className="mt-1 text-sm text-slate-600">總點閱</div>
         </div>
 
         <div className="card p-4">

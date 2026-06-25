@@ -22,7 +22,12 @@ export default async function BoardPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ cat?: string; tag?: string | string[]; q?: string }>;
+  searchParams: Promise<{
+    cat?: string;
+    tag?: string | string[];
+    q?: string;
+    sort?: string;
+  }>;
 }) {
   const { slug } = await params;
   const { ctx } = await pageTenantContext(slug);
@@ -67,9 +72,19 @@ export default async function BoardPage({
     });
   }
 
+  const sort = (Array.isArray(sp.sort) ? sp.sort[0] : sp.sort) ?? "new";
+  const orderBy: Prisma.VideoOrderByWithRelationInput[] =
+    sort === "views"
+      ? [{ viewCount: "desc" }, { createdAt: "desc" }]
+      : sort === "date_asc"
+        ? [{ recordedOn: "asc" }, { createdAt: "asc" }]
+        : sort === "date_desc"
+          ? [{ recordedOn: "desc" }, { createdAt: "desc" }]
+          : [{ createdAt: "desc" }];
+
   const videos = await prisma.video.findMany({
     where: { AND: filters },
-    orderBy: { createdAt: "desc" },
+    orderBy,
     include: { tags: { include: { tag: true } } },
   });
 
@@ -78,6 +93,7 @@ export default async function BoardPage({
     title: v.title,
     source: v.source,
     posterUrl: videoPoster(v),
+    viewCount: v.viewCount,
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),
@@ -99,7 +115,7 @@ export default async function BoardPage({
           basePath={`/t/${slug}`}
           categories={buildTree(flatCategories)}
           tags={tags}
-          selected={{ catId, tagIds, q }}
+          selected={{ catId, tagIds, q, sort }}
         />
       </div>
 

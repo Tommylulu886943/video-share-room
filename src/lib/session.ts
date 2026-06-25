@@ -47,6 +47,20 @@ export async function loadSessionUser(
   });
   if (!user) return null;
 
+  // Track "last seen" for the 今日上線 metric, throttled to ~10 min to avoid a
+  // write on every request.
+  const TEN_MIN = 10 * 60 * 1000;
+  if (!user.lastSeenAt || user.lastSeenAt.getTime() < Date.now() - TEN_MIN) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastSeenAt: new Date() },
+      });
+    } catch {
+      // non-critical; ignore
+    }
+  }
+
   return {
     id: user.id,
     username: user.username,

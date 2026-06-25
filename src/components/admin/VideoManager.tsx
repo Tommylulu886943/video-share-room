@@ -11,6 +11,7 @@ type VideoItem = {
   youtubeId: string;
   posterUrl: string | null;
   thumbnailUrl: string | null;
+  viewCount: number;
   visibility: string;
   categoryId: string | null;
   categoryLabel: string | null;
@@ -441,7 +442,12 @@ export function VideoManager({
                 </div>
               )}
               <div className="space-y-2 p-3">
-                <h3 className="font-semibold">{v.title}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold">{v.title}</h3>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    👁 {v.viewCount.toLocaleString()}
+                  </span>
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {v.categoryLabel && (
                     <span className="chip bg-slate-100 text-slate-600">

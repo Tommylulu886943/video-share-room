@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
 import { canViewVideo } from "@/lib/access";
 import { VideoEmbed } from "@/components/VideoEmbed";
+import { ViewTracker } from "@/components/ViewTracker";
 import {
   videoPoster,
   videoWatchUrl,
@@ -44,6 +45,7 @@ export default async function VideoPage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-3 py-5 sm:px-5">
+      <ViewTracker slug={slug} videoId={video.id} />
       <Link
         href={`/t/${slug}`}
         className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
@@ -81,6 +83,9 @@ export default async function VideoPage({
             <span className="chip bg-amber-100 text-amber-700">🔒 受限影片</span>
           )}
         </div>
+        <p className="mt-1 text-sm text-slate-500">
+          👁 {video.viewCount.toLocaleString()} 次觀看
+        </p>
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
           {categoryLabel && (

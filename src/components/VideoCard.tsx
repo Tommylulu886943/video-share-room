@@ -7,6 +7,7 @@ export interface VideoCardData {
   title: string;
   source: string;
   posterUrl: string | null;
+  viewCount: number;
   visibility: string;
   categoryLabel: string | null;
   tags: string[];
@@ -53,11 +54,18 @@ export function VideoCard({
         )}
       </div>
       <div className="p-3">
-        {video.recordedOn && (
-          <p className="mb-0.5 text-xs font-semibold text-[var(--brand)]">
-            {video.recordedOn}
-          </p>
-        )}
+        <div className="mb-0.5 flex items-center justify-between gap-2 text-xs">
+          {video.recordedOn ? (
+            <span className="font-semibold text-[var(--brand)]">
+              {video.recordedOn}
+            </span>
+          ) : (
+            <span />
+          )}
+          <span className="shrink-0 text-slate-400">
+            👁 {video.viewCount.toLocaleString()}
+          </span>
+        </div>
         <h3 className="line-clamp-2 font-semibold text-slate-900">
           {video.title}
         </h3>

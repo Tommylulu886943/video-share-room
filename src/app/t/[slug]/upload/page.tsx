@@ -45,6 +45,7 @@ export default async function UploadPage({
     youtubeId: v.youtubeId,
     posterUrl: videoPoster(v),
     thumbnailUrl: v.thumbnailUrl,
+    viewCount: v.viewCount,
     visibility: v.visibility,
     categoryId: v.categoryId,
     categoryLabel: categoryLabel(flat, v.categoryId),

@@ -42,6 +42,7 @@ model User {
   passwordHash  String
   emailVerified Boolean  @default(false)
   platformRole  String   @default("USER") // "USER" | "SUPER_ADMIN"
+  lastSeenAt    DateTime? // updated (throttled) on each authenticated request
   createdAt     DateTime @default(now())
 
   memberships    Membership[]
@@ -107,6 +108,7 @@ model Video {
   source       String    @default("youtube") // "youtube" | "bilibili"
   youtubeId    String // external video id: YouTube id, or Bilibili BVID/av (see `source`)
   thumbnailUrl String? // stored cover for sources without a derivable thumb (Bilibili)
+  viewCount    Int       @default(0)
   title        String
   notes        String?
   recordedOn   DateTime?
