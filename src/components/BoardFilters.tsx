@@ -119,7 +119,7 @@ export function BoardFilters({
           <option value="all">全部分類</option>
           {categories.map((c) => (
             <optgroup key={c.id} label={c.name}>
-              <option value={c.id}>{c.name}（全部）</option>
+              <option value={c.id}>全部</option>
               {c.children.map((s) => (
                 <option key={s.id} value={s.id}>
                   　└ {s.name}
