@@ -48,6 +48,20 @@ model User {
   memberships    Membership[]
   tokens         Token[]
   uploadedVideos Video[]      @relation("VideoUploader")
+  favorites      Favorite[]
+}
+
+/// A user's personal favorite (bookmark) of a video.
+model Favorite {
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoId])
+  @@index([userId])
 }
 
 /// Binds a User to a Tenant, carrying the per-club name, level, role and review status.
@@ -122,6 +136,7 @@ model Video {
   uploadedBy User?         @relation("VideoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   tags       VideoTag[]
   access     VideoAccess[]
+  favorites  Favorite[]
 
   @@index([tenantId, visibility])
 }

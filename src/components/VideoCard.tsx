@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Visibility } from "@/lib/constants";
 import { SOURCE_LABEL, sourceGradient, type VideoSource } from "@/lib/sources";
+import { FavoriteStar } from "@/components/FavoriteStar";
 
 export interface VideoCardData {
   id: string;
@@ -8,6 +9,7 @@ export interface VideoCardData {
   source: string;
   posterUrl: string | null;
   viewCount: number;
+  favorited: boolean;
   visibility: string;
   categoryLabel: string | null;
   tags: string[];
@@ -62,8 +64,9 @@ export function VideoCard({
           ) : (
             <span />
           )}
-          <span className="shrink-0 text-slate-400">
-            👁 {video.viewCount.toLocaleString()}
+          <span className="flex shrink-0 items-center gap-2 text-slate-400">
+            <span>👁 {video.viewCount.toLocaleString()}</span>
+            <FavoriteStar slug={slug} videoId={video.id} initial={video.favorited} />
           </span>
         </div>
         <h3 className="line-clamp-2 font-semibold text-slate-900">

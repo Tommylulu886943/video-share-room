@@ -27,11 +27,13 @@ export default async function BoardPage({
     tag?: string | string[];
     q?: string;
     sort?: string;
+    fav?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { ctx } = await pageTenantContext(slug);
+  const { session, ctx } = await pageTenantContext(slug);
   const sp = await searchParams;
+  const favOnly = (Array.isArray(sp.fav) ? sp.fav[0] : sp.fav) === "1";
 
   const tagIds = asArray(sp.tag);
   const q = (sp.q ?? "").trim();
@@ -71,6 +73,9 @@ export default async function BoardPage({
       OR: [{ title: { contains: q } }, { notes: { contains: q } }],
     });
   }
+  if (favOnly) {
+    filters.push({ favorites: { some: { userId: session.id } } });
+  }
 
   const sort = (Array.isArray(sp.sort) ? sp.sort[0] : sp.sort) ?? "new";
   const orderBy: Prisma.VideoOrderByWithRelationInput[] =
@@ -85,7 +90,10 @@ export default async function BoardPage({
   const videos = await prisma.video.findMany({
     where: { AND: filters },
     orderBy,
-    include: { tags: { include: { tag: true } } },
+    include: {
+      tags: { include: { tag: true } },
+      favorites: { where: { userId: session.id }, select: { userId: true } },
+    },
   });
 
   const cards: VideoCardData[] = videos.map((v) => ({
@@ -94,6 +102,7 @@ export default async function BoardPage({
     source: v.source,
     posterUrl: videoPoster(v),
     viewCount: v.viewCount,
+    favorited: v.favorites.length > 0,
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),
@@ -115,7 +124,7 @@ export default async function BoardPage({
           basePath={`/t/${slug}`}
           categories={buildTree(flatCategories)}
           tags={tags}
-          selected={{ catId, tagIds, q, sort }}
+          selected={{ catId, tagIds, q, sort, favOnly }}
         />
       </div>
 

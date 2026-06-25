@@ -5,6 +5,7 @@ import { pageTenantContext } from "@/lib/page";
 import { canViewVideo } from "@/lib/access";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { ViewTracker } from "@/components/ViewTracker";
+import { FavoriteStar } from "@/components/FavoriteStar";
 import {
   videoPoster,
   videoWatchUrl,
@@ -20,7 +21,7 @@ export default async function VideoPage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
-  const { ctx } = await pageTenantContext(slug);
+  const { session, ctx } = await pageTenantContext(slug);
 
   const video = await prisma.video.findUnique({
     where: { id },
@@ -29,6 +30,7 @@ export default async function VideoPage({
       tags: { include: { tag: true } },
       access: { select: { membershipId: true } },
       uploadedBy: { select: { username: true } },
+      favorites: { where: { userId: session.id }, select: { userId: true } },
     },
   });
 
@@ -79,6 +81,12 @@ export default async function VideoPage({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold text-slate-900">{video.title}</h1>
+          <FavoriteStar
+            slug={slug}
+            videoId={video.id}
+            initial={video.favorites.length > 0}
+            size="lg"
+          />
           {video.visibility === Visibility.RESTRICTED && (
             <span className="chip bg-amber-100 text-amber-700">🔒 受限影片</span>
           )}

@@ -18,7 +18,13 @@ export function BoardFilters({
   basePath: string;
   categories: CatNode[];
   tags: { id: string; name: string }[];
-  selected: { catId: string; tagIds: string[]; q: string; sort: string };
+  selected: {
+    catId: string;
+    tagIds: string[];
+    q: string;
+    sort: string;
+    favOnly: boolean;
+  };
 }) {
   const router = useRouter();
   const [q, setQ] = useState(selected.q);
@@ -27,30 +33,39 @@ export function BoardFilters({
   const [catId, setCatId] = useState(selected.catId || "all");
   const [tagIds, setTagIds] = useState<string[]>(selected.tagIds);
   const [sort, setSort] = useState(selected.sort || "new");
+  const [favOnly, setFavOnly] = useState(selected.favOnly);
 
   function push(next: {
     q: string;
     catId: string;
     tagIds: string[];
     sort: string;
+    favOnly: boolean;
   }) {
     const p = new URLSearchParams();
     if (next.q.trim()) p.set("q", next.q.trim());
     if (next.catId) p.set("cat", next.catId);
     next.tagIds.forEach((t) => p.append("tag", t));
     if (next.sort && next.sort !== "new") p.set("sort", next.sort);
+    if (next.favOnly) p.set("fav", "1");
     const qs = p.toString();
     router.push(qs ? `${basePath}?${qs}` : basePath);
   }
 
   function selectCat(id: string) {
     setCatId(id);
-    push({ q, catId: id, tagIds, sort });
+    push({ q, catId: id, tagIds, sort, favOnly });
   }
 
   function selectSort(s: string) {
     setSort(s);
-    push({ q, catId, tagIds, sort: s });
+    push({ q, catId, tagIds, sort: s, favOnly });
+  }
+
+  function toggleFav() {
+    const next = !favOnly;
+    setFavOnly(next);
+    push({ q, catId, tagIds, sort, favOnly: next });
   }
 
   function toggleTag(id: string) {
@@ -58,7 +73,7 @@ export function BoardFilters({
       ? tagIds.filter((x) => x !== id)
       : [...tagIds, id];
     setTagIds(next);
-    push({ q, catId, tagIds: next, sort });
+    push({ q, catId, tagIds: next, sort, favOnly });
   }
 
   function clearAll() {
@@ -66,18 +81,21 @@ export function BoardFilters({
     setCatId("all");
     setTagIds([]);
     setSort("new");
-    push({ q: "", catId: "all", tagIds: [], sort: "new" });
+    setFavOnly(false);
+    push({ q: "", catId: "all", tagIds: [], sort: "new", favOnly: false });
   }
 
   // Debounced keyword search.
   useEffect(() => {
     if (q === selected.q) return;
-    const t = setTimeout(() => push({ q, catId, tagIds, sort }), 350);
+    const t = setTimeout(() => push({ q, catId, tagIds, sort, favOnly }), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const hasFilters = Boolean(q || (catId && catId !== "all") || tagIds.length);
+  const hasFilters = Boolean(
+    q || (catId && catId !== "all") || tagIds.length || favOnly,
+  );
 
   return (
     <div className="space-y-3">
@@ -123,34 +141,43 @@ export function BoardFilters({
         </select>
       </div>
 
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {tags.map((t) => {
-            const on = tagIds.includes(t.id);
-            return (
-              <button
-                key={t.id}
-                onClick={() => toggleTag(t.id)}
-                className={`chip border transition ${
-                  on
-                    ? "border-transparent bg-[var(--brand)] text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                #{t.name}
-              </button>
-            );
-          })}
-          {hasFilters && (
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={toggleFav}
+          aria-pressed={favOnly}
+          className={`chip border transition ${
+            favOnly
+              ? "border-transparent bg-amber-400 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {favOnly ? "★" : "☆"} 我的收藏
+        </button>
+        {tags.map((t) => {
+          const on = tagIds.includes(t.id);
+          return (
             <button
-              onClick={clearAll}
-              className="chip border border-slate-200 bg-white text-slate-400 hover:text-slate-600"
+              key={t.id}
+              onClick={() => toggleTag(t.id)}
+              className={`chip border transition ${
+                on
+                  ? "border-transparent bg-[var(--brand)] text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
             >
-              ✕ 清除篩選
+              #{t.name}
             </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+        {hasFilters && (
+          <button
+            onClick={clearAll}
+            className="chip border border-slate-200 bg-white text-slate-400 hover:text-slate-600"
+          >
+            ✕ 清除篩選
+          </button>
+        )}
+      </div>
     </div>
   );
 }
