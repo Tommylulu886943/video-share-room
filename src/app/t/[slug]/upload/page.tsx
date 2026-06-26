@@ -42,6 +42,7 @@ export default async function UploadPage({
   const videoItems = videos.map((v) => ({
     id: v.id,
     title: v.title,
+    source: v.source,
     youtubeId: v.youtubeId,
     posterUrl: videoPoster(v),
     thumbnailUrl: v.thumbnailUrl,

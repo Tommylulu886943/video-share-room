@@ -55,11 +55,13 @@ export const PATCH = route(
     if (input.title !== undefined || sourceChanged) {
       // Resolve the title (blank → the source's own); refresh the cover when the
       // source changed; peel any leading YYMMDD date into recordedOn.
-      const { rawTitle, thumbnailUrl } = await resolveVideoMeta(
-        input.title ?? null,
-        finalSource,
-        finalId,
-      );
+      // Only hit the network when we actually need to derive something: the
+      // source changed (need a fresh title + cover) or no title was supplied.
+      const provided = input.title?.trim() || null;
+      const needMeta = sourceChanged || !provided;
+      const { rawTitle, thumbnailUrl } = needMeta
+        ? await resolveVideoMeta(provided, finalSource, finalId)
+        : { rawTitle: provided.slice(0, 140), thumbnailUrl: null };
       const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
       data.title = title;
       if (sourceChanged) data.thumbnailUrl = thumbnailUrl;
@@ -85,35 +87,34 @@ export const PATCH = route(
 
     const finalVisibility = input.visibility ?? video.visibility;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.video.update({ where: { id }, data });
+    // Replace tags and the access allow-list via nested writes in a single
+    // update. The previous interactive $transaction + createMany throws on the
+    // libSQL/Turso adapter in production; nested relation writes (the same shape
+    // the create route uses) run as one atomic statement batch instead. Validate
+    // the ids first (reads), then write once.
+    if (input.tagIds !== undefined) {
+      const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
+      data.tags = {
+        deleteMany: {},
+        create: tagIds.map((tagId) => ({ tagId })),
+      };
+    }
 
-      if (input.tagIds !== undefined) {
-        const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
-        await tx.videoTag.deleteMany({ where: { videoId: id } });
-        if (tagIds.length) {
-          await tx.videoTag.createMany({
-            data: tagIds.map((tagId) => ({ videoId: id, tagId })),
-          });
-        }
-      }
+    if (finalVisibility === Visibility.PUBLIC) {
+      // Public videos carry no allow-list.
+      data.access = { deleteMany: {} };
+    } else if (input.accessMembershipIds !== undefined) {
+      const ids = await validateAccessMemberships(
+        ctx.tenant.id,
+        input.accessMembershipIds,
+      );
+      data.access = {
+        deleteMany: {},
+        create: ids.map((membershipId) => ({ membershipId })),
+      };
+    }
 
-      if (finalVisibility === Visibility.PUBLIC) {
-        // Public videos carry no allow-list.
-        await tx.videoAccess.deleteMany({ where: { videoId: id } });
-      } else if (input.accessMembershipIds !== undefined) {
-        const ids = await validateAccessMemberships(
-          ctx.tenant.id,
-          input.accessMembershipIds,
-        );
-        await tx.videoAccess.deleteMany({ where: { videoId: id } });
-        if (ids.length) {
-          await tx.videoAccess.createMany({
-            data: ids.map((membershipId) => ({ videoId: id, membershipId })),
-          });
-        }
-      }
-    });
+    await prisma.video.update({ where: { id }, data });
 
     await recordAudit({
       tenantId: ctx.tenant.id,

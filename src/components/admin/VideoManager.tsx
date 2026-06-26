@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPatch, apiDelete } from "@/lib/client";
 import { Visibility } from "@/lib/constants";
+import { videoWatchUrl, SOURCE_LABEL, type VideoSource } from "@/lib/sources";
 
 type VideoItem = {
   id: string;
   title: string;
+  source: string;
   youtubeId: string;
   posterUrl: string | null;
   thumbnailUrl: string | null;
@@ -174,7 +176,11 @@ export function VideoManager({
   function startEdit(v: VideoItem) {
     setForm({
       title: v.title,
-      youtube: v.youtubeId,
+      // Leave the link blank: blank means "keep the existing video". Pre-filling
+      // the bare stored id would re-run it through the URL parser on save, which
+      // can mis-detect the source (e.g. an 11-char Instagram shortcode looks like
+      // a YouTube id) or fail outright. The admin only fills this to *replace* it.
+      youtube: "",
       thumbnailUrl: v.thumbnailUrl ?? "",
       catId: v.categoryId ?? "",
       tagIds: [...v.tagIds],
@@ -253,6 +259,8 @@ export function VideoManager({
       setError(err instanceof Error ? err.message : "發生未知錯誤");
     }
   }
+
+  const editing = editingId ? (videos.find((v) => v.id === editingId) ?? null) : null;
 
   return (
     <div className="space-y-6">
@@ -370,14 +378,37 @@ export function VideoManager({
             <label className="label" htmlFor="vm-youtube">
               影片連結（YouTube / Bilibili / Instagram）
             </label>
+            {editing && (
+              <p className="text-xs text-slate-500">
+                目前來源：
+                {SOURCE_LABEL[editing.source as VideoSource] ?? editing.source}・
+                <a
+                  href={videoWatchUrl(editing.source, editing.youtubeId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--brand)] underline"
+                >
+                  開啟原連結
+                </a>
+              </p>
+            )}
             <input
               id="vm-youtube"
               className="input"
               value={form.youtube}
               onChange={(e) => setForm({ ...form, youtube: e.target.value })}
-              placeholder="貼上 YouTube / Bilibili / Instagram Reel 連結"
-              required
+              placeholder={
+                editing
+                  ? "留空＝維持原影片；貼上新連結才會更換"
+                  : "貼上 YouTube / Bilibili / Instagram Reel 連結"
+              }
+              required={!editing}
             />
+            {editing && (
+              <p className="text-xs text-slate-400">
+                只是要改標題、分類、標籤等資訊時，請保持空白。
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
