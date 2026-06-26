@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPatch, apiDelete } from "@/lib/client";
 import { Visibility } from "@/lib/constants";
@@ -68,6 +68,73 @@ export function VideoManager({
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // List controls: keyword search, category filter, and sort. All client-side
+  // so the admin can find a video instantly without a server round-trip.
+  const [query, setQuery] = useState("");
+  const [filterCat, setFilterCat] = useState("all");
+  const [sortBy, setSortBy] = useState("new");
+
+  // `videos` arrives newest-first (createdAt desc), so the original order is the
+  // "最新加入" sort. Everything else filters/reorders a copy.
+  const visibleVideos = useMemo(() => {
+    const term = query.trim().toLowerCase();
+
+    const matchesCategory = (v: VideoItem) => {
+      if (filterCat === "all") return true;
+      if (filterCat === "none") return !v.categoryId;
+      const top = categoryTree.find((c) => c.id === filterCat);
+      if (top) {
+        const ids = [top.id, ...top.children.map((c) => c.id)];
+        return v.categoryId != null && ids.includes(v.categoryId);
+      }
+      return v.categoryId === filterCat;
+    };
+
+    const matchesQuery = (v: VideoItem) =>
+      !term ||
+      v.title.toLowerCase().includes(term) ||
+      (v.notes ?? "").toLowerCase().includes(term) ||
+      v.tags.some((t) => t.toLowerCase().includes(term));
+
+    const list = videos.filter((v) => matchesCategory(v) && matchesQuery(v));
+
+    const byDate = (dir: 1 | -1) => (a: VideoItem, b: VideoItem) => {
+      const ak = a.recordedOn ?? "";
+      const bk = b.recordedOn ?? "";
+      if (ak === bk) return 0;
+      if (!ak) return 1; // videos without a date sort last
+      if (!bk) return -1;
+      return dir * ak.localeCompare(bk);
+    };
+
+    switch (sortBy) {
+      case "title":
+        list.sort((a, b) => a.title.localeCompare(b.title, "zh-Hant"));
+        break;
+      case "views":
+        list.sort((a, b) => b.viewCount - a.viewCount);
+        break;
+      case "date_desc":
+        list.sort(byDate(-1));
+        break;
+      case "date_asc":
+        list.sort(byDate(1));
+        break;
+      default:
+        break; // "new" → keep original (newest-first) order
+    }
+    return list;
+  }, [videos, query, filterCat, sortBy, categoryTree]);
+
+  const filtersActive =
+    query.trim() !== "" || filterCat !== "all" || sortBy !== "new";
+
+  function clearFilters() {
+    setQuery("");
+    setFilterCat("all");
+    setSortBy("new");
+  }
 
   function resetForm() {
     setForm(emptyForm);
@@ -190,11 +257,71 @@ export function VideoManager({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">共 {videos.length} 部影片</p>
+        <p className="text-sm text-slate-500">
+          {visibleVideos.length === videos.length
+            ? `共 ${videos.length} 部影片`
+            : `顯示 ${visibleVideos.length}／共 ${videos.length} 部影片`}
+        </p>
         <button type="button" className="btn-brand" onClick={startCreate}>
           ＋ 新增影片
         </button>
       </div>
+
+      {videos.length > 0 && (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              🔍
+            </span>
+            <input
+              className="input pl-9"
+              placeholder="搜尋標題、備註或標籤…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <select
+            className="input sm:w-56"
+            value={filterCat}
+            onChange={(e) => setFilterCat(e.target.value)}
+            aria-label="分類篩選"
+          >
+            <option value="all">全部分類</option>
+            <option value="none">未分類</option>
+            {categoryTree.map((top) => (
+              <optgroup key={top.id} label={top.name}>
+                <option value={top.id}>全部</option>
+                {top.children.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    　└ {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <select
+            className="input sm:w-40"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            aria-label="排序"
+          >
+            <option value="new">最新加入</option>
+            <option value="title">名稱</option>
+            <option value="date_desc">日期（新→舊）</option>
+            <option value="date_asc">日期（舊→新）</option>
+            <option value="views">觀看次數</option>
+          </select>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="btn-ghost shrink-0"
+            >
+              ✕ 清除
+            </button>
+          )}
+        </div>
+      )}
 
       {open && (
         <div
@@ -424,9 +551,21 @@ export function VideoManager({
 
       {videos.length === 0 ? (
         <p className="text-sm text-slate-400">尚無影片，點擊「＋ 新增影片」開始。</p>
+      ) : visibleVideos.length === 0 ? (
+        <div className="card grid place-items-center px-6 py-12 text-center">
+          <span className="mb-2 text-3xl">🔍</span>
+          <p className="font-medium text-slate-700">沒有符合條件的影片</p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="mt-2 text-sm text-[var(--brand)] hover:underline"
+          >
+            清除篩選條件
+          </button>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {videos.map((v) => (
+          {visibleVideos.map((v) => (
             <div key={v.id} className="card overflow-hidden">
               {v.posterUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element

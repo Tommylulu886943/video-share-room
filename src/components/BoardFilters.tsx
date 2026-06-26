@@ -135,6 +135,7 @@ export function BoardFilters({
           aria-label="排序"
         >
           <option value="new">最新加入</option>
+          <option value="title">名稱</option>
           <option value="date_desc">日期（新→舊）</option>
           <option value="date_asc">日期（舊→新）</option>
           <option value="views">觀看次數</option>

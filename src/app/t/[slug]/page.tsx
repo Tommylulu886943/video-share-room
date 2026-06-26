@@ -81,11 +81,13 @@ export default async function BoardPage({
   const orderBy: Prisma.VideoOrderByWithRelationInput[] =
     sort === "views"
       ? [{ viewCount: "desc" }, { createdAt: "desc" }]
-      : sort === "date_asc"
-        ? [{ recordedOn: "asc" }, { createdAt: "asc" }]
-        : sort === "date_desc"
-          ? [{ recordedOn: "desc" }, { createdAt: "desc" }]
-          : [{ createdAt: "desc" }];
+      : sort === "title"
+        ? [{ title: "asc" }]
+        : sort === "date_asc"
+          ? [{ recordedOn: "asc" }, { createdAt: "asc" }]
+          : sort === "date_desc"
+            ? [{ recordedOn: "desc" }, { createdAt: "desc" }]
+            : [{ createdAt: "desc" }];
 
   const videos = await prisma.video.findMany({
     where: { AND: filters },
