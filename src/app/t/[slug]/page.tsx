@@ -40,7 +40,7 @@ export default async function BoardPage({
   const tagIds = asArray(sp.tag);
   const q = (sp.q ?? "").trim();
 
-  const [flatCategories, tags, announcements] = await Promise.all([
+  const [flatCategories, tags, announcements, latestVideo] = await Promise.all([
     getFlatCategories(ctx.tenant.id),
     prisma.tag.findMany({
       where: { tenantId: ctx.tenant.id },
@@ -55,7 +55,12 @@ export default async function BoardPage({
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, content: true, color: true, expiresAt: true },
     }),
+    prisma.video.aggregate({
+      where: viewableVideoWhere(ctx),
+      _max: { createdAt: true },
+    }),
   ]);
+  const latestVideoAt = latestVideo._max.createdAt;
 
   // Category selection: no `cat` param → the tenant's default category;
   // `cat=all` → show everything; otherwise the given id. Fall back to "all"
@@ -150,9 +155,26 @@ export default async function BoardPage({
           search={{ q, tagIds, sort, favOnly }}
         />
         <section className="min-w-0">
-          <p className="mb-3 text-sm text-slate-500">
-            {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm text-slate-500">
+            <p>
+              {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
+            </p>
+            <p>
+              最新影片更新：{latestVideoAt ? (
+                <time dateTime={latestVideoAt.toISOString()} title="最新影片加入時間（台灣時間）">
+                  {new Intl.DateTimeFormat("zh-TW", {
+                    timeZone: "Asia/Taipei",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hourCycle: "h23",
+                  }).format(latestVideoAt)}（台灣時間）
+                </time>
+              ) : "尚無影片"}
+            </p>
+          </div>
 
           <div className="card mb-5 p-4">
             <BoardFilters
