@@ -12,6 +12,7 @@ import {
   getFlatCategories,
 } from "@/lib/categories";
 import type { Prisma } from "@/generated/prisma/client";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
@@ -39,12 +40,20 @@ export default async function BoardPage({
   const tagIds = asArray(sp.tag);
   const q = (sp.q ?? "").trim();
 
-  const [flatCategories, tags] = await Promise.all([
+  const [flatCategories, tags, announcements] = await Promise.all([
     getFlatCategories(ctx.tenant.id),
     prisma.tag.findMany({
       where: { tenantId: ctx.tenant.id },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
+    }),
+    prisma.announcement.findMany({
+      where: {
+        tenantId: ctx.tenant.id,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, content: true, color: true, expiresAt: true },
     }),
   ]);
 
@@ -130,6 +139,7 @@ export default async function BoardPage({
 
   return (
     <main className="mx-auto w-full max-w-7xl px-3 py-5 sm:px-5">
+      <AnnouncementBanner announcements={announcements} />
       <div className="grid gap-5 lg:grid-cols-[15rem_minmax(0,1fr)]">
         <CategorySidebar
           basePath={`/t/${slug}`}

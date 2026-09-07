@@ -11,6 +11,7 @@ export function AdminTabs({ slug }: { slug: string }) {
     { label: "總覽", href: root, exact: true },
     { label: "會員審核", href: root + "/members" },
     { label: "影片", href: root + "/videos" },
+    { label: "公告", href: root + "/announcements" },
     { label: "分類與標籤", href: root + "/taxonomy" },
     { label: "活動紀錄", href: root + "/audit" },
     { label: "設定", href: root + "/branding" },
