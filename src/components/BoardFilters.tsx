@@ -3,20 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface CatNode {
-  id: string;
-  name: string;
-  children: { id: string; name: string }[];
-}
-
 export function BoardFilters({
   basePath,
-  categories,
   tags,
   selected,
 }: {
   basePath: string;
-  categories: CatNode[];
   tags: { id: string; name: string }[];
   selected: {
     catId: string;
@@ -50,11 +42,6 @@ export function BoardFilters({
     if (next.favOnly) p.set("fav", "1");
     const qs = p.toString();
     router.push(qs ? `${basePath}?${qs}` : basePath);
-  }
-
-  function selectCat(id: string) {
-    setCatId(id);
-    push({ q, catId: id, tagIds, sort, favOnly });
   }
 
   function selectSort(s: string) {
@@ -111,23 +98,6 @@ export function BoardFilters({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
-        <select
-          className="input sm:w-56"
-          value={catId}
-          onChange={(e) => selectCat(e.target.value)}
-        >
-          <option value="all">全部分類</option>
-          {categories.map((c) => (
-            <optgroup key={c.id} label={c.name}>
-              <option value={c.id}>全部</option>
-              {c.children.map((s) => (
-                <option key={s.id} value={s.id}>
-                  　└ {s.name}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
         <select
           className="input sm:w-40"
           value={sort}

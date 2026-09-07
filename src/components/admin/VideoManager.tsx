@@ -76,6 +76,17 @@ export function VideoManager({
   const [query, setQuery] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [sortBy, setSortBy] = useState("new");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [bulkForm, setBulkForm] = useState({
+    applyCategory: false,
+    categoryId: "",
+    applyTags: false,
+    tagMode: "add" as "add" | "remove" | "replace",
+    tagIds: [] as string[],
+  });
 
   // `videos` arrives newest-first (createdAt desc), so the original order is the
   // "最新加入" sort. Everything else filters/reorders a copy.
@@ -136,6 +147,74 @@ export function VideoManager({
     setQuery("");
     setFilterCat("all");
     setSortBy("new");
+  }
+
+  function toggleVideo(id: string) {
+    setSelectedIds((ids) =>
+      ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id],
+    );
+  }
+
+  function toggleAllVisible() {
+    const visibleIds = visibleVideos.map((video) => video.id);
+    const allSelected = visibleIds.every((id) => selectedIds.includes(id));
+    setSelectedIds((ids) =>
+      allSelected
+        ? ids.filter((id) => !visibleIds.includes(id))
+        : Array.from(new Set([...ids, ...visibleIds])),
+    );
+  }
+
+  function toggleBulkTag(id: string) {
+    setBulkForm((form) => ({
+      ...form,
+      tagIds: form.tagIds.includes(id)
+        ? form.tagIds.filter((tagId) => tagId !== id)
+        : [...form.tagIds, id],
+    }));
+  }
+
+  async function submitBulkEdit(e: React.FormEvent) {
+    e.preventDefault();
+    setBulkError(null);
+    if (!bulkForm.applyCategory && !bulkForm.applyTags) {
+      setBulkError("請至少勾選一項要修改的內容");
+      return;
+    }
+    if (
+      bulkForm.applyTags &&
+      bulkForm.tagMode !== "replace" &&
+      bulkForm.tagIds.length === 0
+    ) {
+      setBulkError("加入或移除標籤時，請至少選擇一個標籤");
+      return;
+    }
+    setBulkSubmitting(true);
+    try {
+      await apiPatch(`/api/t/${slug}/videos/batch`, {
+        videoIds: selectedIds,
+        ...(bulkForm.applyCategory
+          ? { categoryId: bulkForm.categoryId || null }
+          : {}),
+        ...(bulkForm.applyTags
+          ? { tags: { mode: bulkForm.tagMode, tagIds: bulkForm.tagIds } }
+          : {}),
+      });
+      setSelectedIds([]);
+      setBulkOpen(false);
+      setBulkForm({
+        applyCategory: false,
+        categoryId: "",
+        applyTags: false,
+        tagMode: "add",
+        tagIds: [],
+      });
+      router.refresh();
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : "批次修改失敗");
+    } finally {
+      setBulkSubmitting(false);
+    }
   }
 
   function resetForm() {
@@ -276,7 +355,42 @@ export function VideoManager({
       </div>
 
       {videos.length > 0 && (
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="space-y-3">
+          {canManage && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+              <button type="button" className="btn-outline" onClick={toggleAllVisible}>
+                {visibleVideos.length > 0 &&
+                visibleVideos.every((video) => selectedIds.includes(video.id))
+                  ? "取消選取目前結果"
+                  : "選取目前結果"}
+              </button>
+              <span className="text-sm text-slate-500">
+                已選 {selectedIds.length} 部
+              </span>
+              {selectedIds.length > 0 && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-brand ml-auto"
+                    onClick={() => setBulkOpen((value) => !value)}
+                  >
+                    批次修改
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => {
+                      setSelectedIds([]);
+                      setBulkOpen(false);
+                    }}
+                  >
+                    清除選取
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row">
           <div className="relative flex-1">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               🔍
@@ -328,7 +442,124 @@ export function VideoManager({
               ✕ 清除
             </button>
           )}
+          </div>
         </div>
+      )}
+
+      {bulkOpen && selectedIds.length > 0 && (
+        <form onSubmit={submitBulkEdit} className="card space-y-4 border-[var(--brand)] p-4">
+          <div>
+            <h2 className="font-semibold">批次修改 {selectedIds.length} 部影片</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              只有勾選的項目會被套用；未勾選的資料會保持原樣。
+            </p>
+          </div>
+
+          {bulkError && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              {bulkError}
+            </p>
+          )}
+
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 font-medium">
+              <input
+                type="checkbox"
+                checked={bulkForm.applyCategory}
+                onChange={(e) =>
+                  setBulkForm({ ...bulkForm, applyCategory: e.target.checked })
+                }
+              />
+              統一分類
+            </label>
+            {bulkForm.applyCategory && (
+              <select
+                className="input mt-3"
+                value={bulkForm.categoryId}
+                onChange={(e) =>
+                  setBulkForm({ ...bulkForm, categoryId: e.target.value })
+                }
+              >
+                <option value="">未分類</option>
+                {categoryTree.map((top) => (
+                  <optgroup key={top.id} label={top.name}>
+                    <option value={top.id}>{top.name}</option>
+                    {top.children.map((child) => (
+                      <option key={child.id} value={child.id}>
+                        　{child.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+          </fieldset>
+
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <label className="flex items-center gap-2 font-medium">
+              <input
+                type="checkbox"
+                checked={bulkForm.applyTags}
+                onChange={(e) =>
+                  setBulkForm({ ...bulkForm, applyTags: e.target.checked })
+                }
+              />
+              統一標籤
+            </label>
+            {bulkForm.applyTags && (
+              <div className="mt-3 space-y-3">
+                <select
+                  className="input sm:w-56"
+                  value={bulkForm.tagMode}
+                  onChange={(e) =>
+                    setBulkForm({
+                      ...bulkForm,
+                      tagMode: e.target.value as "add" | "remove" | "replace",
+                    })
+                  }
+                >
+                  <option value="add">加入所選標籤</option>
+                  <option value="remove">移除所選標籤</option>
+                  <option value="replace">取代全部標籤</option>
+                </select>
+                <div className="flex flex-wrap gap-2">
+                  {allTags.map((tag) => {
+                    const active = bulkForm.tagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleBulkTag(tag.id)}
+                        className={
+                          active
+                            ? "chip bg-[var(--brand)] text-white"
+                            : "chip bg-slate-100 text-slate-600"
+                        }
+                      >
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                  {allTags.length === 0 && (
+                    <span className="text-sm text-slate-400">尚無標籤</span>
+                  )}
+                </div>
+                {bulkForm.tagMode === "replace" && bulkForm.tagIds.length === 0 && (
+                  <p className="text-xs text-amber-600">這會清除所選影片的全部標籤。</p>
+                )}
+              </div>
+            )}
+          </fieldset>
+
+          <div className="flex gap-2">
+            <button type="submit" className="btn-brand" disabled={bulkSubmitting}>
+              {bulkSubmitting ? "套用中…" : `套用到 ${selectedIds.length} 部影片`}
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => setBulkOpen(false)}>
+              取消
+            </button>
+          </div>
+        </form>
       )}
 
       {open && (
@@ -597,7 +828,23 @@ export function VideoManager({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {visibleVideos.map((v) => (
-            <div key={v.id} className="card overflow-hidden">
+            <div
+              key={v.id}
+              className={`card relative overflow-hidden ${
+                selectedIds.includes(v.id) ? "ring-2 ring-[var(--brand)]" : ""
+              }`}
+            >
+              {canManage && (
+                <label className="absolute left-3 top-3 z-10 grid h-9 w-9 cursor-pointer place-items-center rounded-lg bg-white/95 shadow">
+                  <input
+                    type="checkbox"
+                    aria-label={`選取 ${v.title}`}
+                    checked={selectedIds.includes(v.id)}
+                    onChange={() => toggleVideo(v.id)}
+                    className="h-4 w-4 accent-[var(--brand)]"
+                  />
+                </label>
+              )}
               {v.posterUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

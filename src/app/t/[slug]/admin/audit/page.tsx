@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 const ACTION_LABEL: Record<string, string> = {
   "video.create": "上傳",
   "video.batch": "批量上傳",
+  "video.batch_update": "批量修改",
   "video.update": "編輯",
   "video.delete": "刪除",
   "member.approve": "審核",

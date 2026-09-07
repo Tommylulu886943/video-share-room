@@ -98,6 +98,34 @@ export const videoBatchSchema = z.object({
   accessMembershipIds: z.array(z.string().min(1)).default([]),
 });
 
+export const videoBatchUpdateSchema = z
+  .object({
+    videoIds: z
+      .array(z.string().min(1))
+      .min(1, "請至少選擇一部影片")
+      .max(500, "一次最多修改 500 部影片"),
+    categoryId: z.string().min(1).nullable().optional(),
+    tags: z
+      .object({
+        mode: z.enum(["replace", "add", "remove"]),
+        tagIds: z.array(z.string().min(1)).max(100),
+      })
+      .optional(),
+  })
+  .refine((input) => input.categoryId !== undefined || input.tags !== undefined, {
+    message: "請至少選擇一項要修改的內容",
+  })
+  .refine(
+    (input) =>
+      !input.tags ||
+      input.tags.mode === "replace" ||
+      input.tags.tagIds.length > 0,
+    {
+      message: "加入或移除標籤時，請至少選擇一個標籤",
+      path: ["tags", "tagIds"],
+    },
+  );
+
 export const tenantCreateSchema = z.object({
   name: z.string().trim().min(1, "請填寫社團名稱").max(60),
   slug,

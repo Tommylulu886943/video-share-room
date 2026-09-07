@@ -1,4 +1,5 @@
 import { BoardFilters } from "@/components/BoardFilters";
+import { CategorySidebar } from "@/components/CategorySidebar";
 import { VideoCard, type VideoCardData } from "@/components/VideoCard";
 import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
@@ -77,6 +78,18 @@ export default async function BoardPage({
     filters.push({ favorites: { some: { userId: session.id } } });
   }
 
+  const accessibleCategories = await prisma.video.findMany({
+    where: viewableVideoWhere(ctx),
+    select: { categoryId: true },
+  });
+  const categoryCounts = accessibleCategories.reduce<Record<string, number>>(
+    (counts, video) => {
+      if (video.categoryId) counts[video.categoryId] = (counts[video.categoryId] ?? 0) + 1;
+      return counts;
+    },
+    {},
+  );
+
   const sort = (Array.isArray(sp.sort) ? sp.sort[0] : sp.sort) ?? "new";
   const orderBy: Prisma.VideoOrderByWithRelationInput[] =
     sort === "views"
@@ -116,33 +129,45 @@ export default async function BoardPage({
   }));
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-5">
-      <p className="mb-3 text-sm text-slate-500">
-        {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
-      </p>
-
-      <div className="card mb-5 p-4">
-        <BoardFilters
+    <main className="mx-auto w-full max-w-7xl px-3 py-5 sm:px-5">
+      <div className="grid gap-5 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <CategorySidebar
           basePath={`/t/${slug}`}
           categories={buildTree(flatCategories)}
-          tags={tags}
-          selected={{ catId, tagIds, q, sort, favOnly }}
+          counts={categoryCounts}
+          totalCount={accessibleCategories.length}
+          selectedCatId={catId}
+          search={{ q, tagIds, sort, favOnly }}
         />
-      </div>
+        <section className="min-w-0">
+          <p className="mb-3 text-sm text-slate-500">
+            {videos.length} 支影片{ctx.isAdmin ? "（管理者可見全部）" : ""}
+          </p>
 
-      {cards.length === 0 ? (
+          <div className="card mb-5 p-4">
+            <BoardFilters
+              key={`${catId}:${tagIds.join(",")}:${q}:${sort}:${favOnly}`}
+              basePath={`/t/${slug}`}
+              tags={tags}
+              selected={{ catId, tagIds, q, sort, favOnly }}
+            />
+          </div>
+
+          {cards.length === 0 ? (
         <div className="card grid place-items-center px-6 py-16 text-center">
           <span className="mb-2 text-4xl">🎞️</span>
           <p className="font-medium text-slate-700">沒有符合條件的影片</p>
           <p className="text-sm text-slate-500">試試調整篩選條件或搜尋關鍵字。</p>
         </div>
-      ) : (
+          ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((v) => (
             <VideoCard key={v.id} video={v} slug={slug} />
           ))}
         </div>
-      )}
+          )}
+        </section>
+      </div>
     </main>
   );
 }
