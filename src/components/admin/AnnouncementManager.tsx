@@ -139,10 +139,10 @@ export function AnnouncementManager({ slug, announcements }: { slug: string; ann
             <input id="announcement-expiry" type="datetime-local" className="input sm:max-w-sm" min={toLocalInput(new Date().toISOString())} value={form.expiresAt} onChange={(e) => update("expiresAt", e.target.value)} />
             <p className="mt-1 text-xs text-slate-500">不設定代表持續顯示，直到管理員刪除。</p>
           </div>
-          <div className={`rounded-xl border p-4 ${announcementColorStyles[form.color].panel}`}>
+          <div className={`min-w-0 rounded-xl border p-4 ${announcementColorStyles[form.color].panel}`}>
             <p className="text-xs font-medium opacity-60">預覽</p>
-            <p className="mt-1 font-semibold">📌 {form.title || "公告標題"}</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm opacity-90">{form.content || "公告內容會顯示在這裡。"}</p>
+            <p className="mt-1 break-words font-semibold">📌 {form.title || "公告標題"}</p>
+            <p className="mt-1 break-words whitespace-pre-wrap text-sm opacity-90">{form.content || "公告內容會顯示在這裡。"}</p>
           </div>
           <button type="button" className="btn-brand" disabled={busy} onClick={save}>{busy ? "儲存中…" : editingId ? "儲存變更" : "發布公告"}</button>
         </div>
@@ -157,9 +157,9 @@ export function AnnouncementManager({ slug, announcements }: { slug: string; ann
           return (
             <article key={item.id} className={`rounded-xl border p-4 ${announcementColorStyles[color].panel} ${expired ? "opacity-60" : ""}`}>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{item.title}</h3><span className={`chip ${expired ? "bg-slate-200 text-slate-600" : "bg-white/70 text-current"}`}>{expired ? "已到期" : "顯示中"}</span></div>
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-6 opacity-90">{item.content}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2"><h3 className="min-w-0 break-words font-semibold">{item.title}</h3><span className={`chip ${expired ? "bg-slate-200 text-slate-600" : "bg-white/70 text-current"}`}>{expired ? "已到期" : "顯示中"}</span></div>
+                  <p className="mt-1 break-words whitespace-pre-wrap text-sm leading-6 opacity-90">{item.content}</p>
                   <p className="mt-2 text-xs opacity-60">{item.expiresAt ? `有效至 ${new Date(item.expiresAt).toLocaleString("zh-TW")}` : "無到期日"}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">

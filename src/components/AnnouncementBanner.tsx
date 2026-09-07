@@ -22,14 +22,14 @@ export function AnnouncementBanner({ announcements }: { announcements: Announcem
               <span aria-hidden="true" className="mt-0.5 text-lg">📌</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <h2 className="font-semibold">{announcement.title}</h2>
+                  <h2 className="break-words font-semibold">{announcement.title}</h2>
                   {announcement.expiresAt ? (
                     <span className="text-xs opacity-70">
                       公告至 {announcement.expiresAt.toLocaleString("zh-TW", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1 whitespace-pre-wrap text-sm leading-6 opacity-90">{announcement.content}</p>
+                <p className="mt-1 break-words whitespace-pre-wrap text-sm leading-6 opacity-90">{announcement.content}</p>
               </div>
             </div>
           </article>
