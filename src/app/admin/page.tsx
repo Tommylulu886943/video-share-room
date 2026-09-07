@@ -1,10 +1,15 @@
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
 import { TenantCreateForm } from "@/components/admin/TenantCreateForm";
 
-// Access is gated by src/app/admin/layout.tsx (super admin only).
+// Guard the page itself as well as its layout before loading tenant data.
 export default async function AdminPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (session.platformRole !== "SUPER_ADMIN") redirect("/");
   const tenants = await prisma.tenant.findMany({
     orderBy: { createdAt: "asc" },
     include: {
@@ -54,6 +59,7 @@ export default async function AdminPage() {
                       {t.brandLogo && <span>{t.brandLogo}</span>}
                       <span className="font-medium text-slate-800">
                         {t.name}
+                        {t.isPrivate && <span className="ml-2 rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">不公開</span>}
                       </span>
                     </div>
                   </td>

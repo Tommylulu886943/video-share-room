@@ -1,3 +1,4 @@
+import { validateAttributes, parseMemberFields } from "@/lib/member-fields";
 import { prisma } from "@/lib/db";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
 import {
@@ -12,10 +13,12 @@ export const runtime = "nodejs";
 
 export const POST = route(async (req: Request) => {
   const session = await requireUser();
-  const { tenantSlug, name, level } = applySchema.parse(await readJson(req));
+  const { tenantSlug, name, level, attributes } = applySchema.parse(await readJson(req));
 
   const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
-  if (!tenant) throw new ApiError(404, "找不到社團");
+  if (!tenant || tenant.isPrivate) throw new ApiError(404, "找不到社團");
+
+  const values = validateAttributes(parseMemberFields(tenant.memberFields), { ...attributes, ...(level ? { level } : {}) });
 
   const { needsVerification, status } = computeApplicationStatus(
     tenant,
@@ -35,7 +38,8 @@ export const POST = route(async (req: Request) => {
         where: { id: existing.id },
         data: {
           name,
-          level,
+          level: values.level ?? "",
+          attributes: JSON.stringify(values),
           status,
           appliedAt: new Date(),
           reviewedAt: null,
@@ -47,7 +51,8 @@ export const POST = route(async (req: Request) => {
           userId: session.id,
           tenantId: tenant.id,
           name,
-          level,
+          level: values.level ?? "",
+          attributes: JSON.stringify(values),
           role: TenantRole.MEMBER,
           status,
         },

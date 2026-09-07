@@ -1,3 +1,4 @@
+import { validateAttributes, parseMemberFields } from "@/lib/member-fields";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
@@ -19,7 +20,9 @@ export const POST = route(async (req: Request) => {
   const tenant = await prisma.tenant.findUnique({
     where: { slug: input.tenantSlug },
   });
-  if (!tenant) throw new ApiError(404, "找不到社團");
+  if (!tenant || tenant.isPrivate) throw new ApiError(404, "找不到社團");
+
+  const values = validateAttributes(parseMemberFields(tenant.memberFields), { ...input.attributes, ...(input.level ? { level: input.level } : {}) });
 
   // New-account registration. Existing accounts should log in and use 加入社團.
   const existing = await prisma.user.findFirst({
@@ -38,7 +41,8 @@ export const POST = route(async (req: Request) => {
   const membership = await prisma.membership.create({
     data: {
       name: input.name,
-      level: input.level,
+      level: values.level ?? "",
+      attributes: JSON.stringify(values),
       role: TenantRole.MEMBER,
       status,
       tenant: { connect: { id: tenant.id } },

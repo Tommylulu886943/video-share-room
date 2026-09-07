@@ -16,8 +16,9 @@ export default async function RegisterPage({
 
   const { tenant } = await searchParams;
   const tenants = await prisma.tenant.findMany({
+    where: { isPrivate: false },
     orderBy: { createdAt: "asc" },
-    select: { slug: true, name: true },
+    select: { slug: true, name: true, memberFields: true },
   });
 
   return (
@@ -38,7 +39,7 @@ export default async function RegisterPage({
           目前還沒有開放的社團，請聯繫平台管理者。
         </p>
       ) : (
-        <RegisterForm tenants={tenants} defaultSlug={tenant} />
+        <RegisterForm tenants={tenants} defaultSlug={tenants.some((t) => t.slug === tenant) ? tenant : undefined} />
       )}
     </AuthLayout>
   );

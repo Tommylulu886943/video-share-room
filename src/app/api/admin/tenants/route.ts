@@ -1,3 +1,4 @@
+import { validateAttributes } from "@/lib/member-fields";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
@@ -15,6 +16,8 @@ export const runtime = "nodejs";
 export const POST = route(async (req: Request) => {
   await requireSuperAdmin();
   const input = tenantCreateSchema.parse(await readJson(req));
+
+  const values = validateAttributes(input.memberFields, input.adminAttributes);
 
   const slugTaken = await prisma.tenant.findUnique({
     where: { slug: input.slug },
@@ -42,6 +45,8 @@ export const POST = route(async (req: Request) => {
 
   const tenant = await prisma.tenant.create({
     data: {
+      isPrivate: input.isPrivate,
+      memberFields: JSON.stringify(input.memberFields),
       name: input.name,
       slug: input.slug,
       brandColor: input.brandColor ?? "#2563eb",
@@ -50,7 +55,8 @@ export const POST = route(async (req: Request) => {
         create: {
           userId: adminUser.id,
           name: input.adminName,
-          level: input.adminLevel ?? "管理者",
+          level: values.level ?? "",
+          attributes: JSON.stringify(values),
           role: TenantRole.ADMIN,
           status: MembershipStatus.APPROVED,
         },

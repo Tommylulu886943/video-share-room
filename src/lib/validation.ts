@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { memberFieldsSchema, attributeValuesSchema } from "@/lib/member-fields";
 import { MembershipStatus, Visibility } from "@/lib/constants";
 
 const username = z
@@ -11,7 +12,6 @@ const username = z
 const password = z.string().min(8, "密碼至少 8 個字元").max(128);
 const email = z.string().trim().toLowerCase().email("email 格式不正確");
 const name = z.string().trim().min(1, "請填寫名稱").max(60);
-const level = z.string().trim().min(1, "請填寫級數").max(60);
 const slug = z
   .string()
   .trim()
@@ -25,7 +25,8 @@ export const registerSchema = z.object({
   email,
   password,
   name,
-  level,
+  level: z.string().trim().max(60).default(""),
+  attributes: attributeValuesSchema,
   tenantSlug: slug,
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -38,7 +39,8 @@ export const loginSchema = z.object({
 export const applySchema = z.object({
   tenantSlug: slug,
   name,
-  level,
+  level: z.string().trim().max(60).default(""),
+  attributes: attributeValuesSchema,
 });
 
 export const reviewSchema = z.object({
@@ -139,7 +141,9 @@ export const tenantCreateSchema = z.object({
   adminEmail: email,
   adminPassword: password.optional(),
   adminName: name,
-  adminLevel: level.optional(),
+  isPrivate: z.boolean().default(false),
+  memberFields: memberFieldsSchema.default([]),
+  adminAttributes: attributeValuesSchema,
 });
 
 export const accessUpdateSchema = z.object({

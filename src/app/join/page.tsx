@@ -1,3 +1,4 @@
+import { AcceptInvitation } from "@/components/forms/AcceptInvitation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { JoinForm } from "@/components/forms/JoinForm";
@@ -13,8 +14,9 @@ export default async function JoinPage() {
   if (!session) redirect("/login");
 
   const allTenants = await prisma.tenant.findMany({
+    where: { isPrivate: false },
     orderBy: { createdAt: "asc" },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, slug: true, name: true, memberFields: true },
   });
   const blocked = new Set(
     session.memberships
@@ -69,6 +71,7 @@ export default async function JoinPage() {
         </section>
       )}
 
+      <AcceptInvitation />
       <section className="mt-6">
         <h2 className="mb-2 text-sm font-semibold text-slate-700">
           申請新的社團

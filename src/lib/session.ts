@@ -67,7 +67,7 @@ export async function loadSessionUser(
     email: user.email,
     emailVerified: user.emailVerified,
     platformRole: user.platformRole,
-    memberships: user.memberships.map((m) => ({
+    memberships: user.memberships.filter((m) => !m.tenant.isPrivate || m.status === "APPROVED").map((m) => ({
       id: m.id,
       tenantId: m.tenantId,
       tenantSlug: m.tenant.slug,

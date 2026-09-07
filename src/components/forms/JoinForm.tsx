@@ -1,10 +1,13 @@
 "use client";
 
+import { MemberFields } from "@/components/forms/MemberFields";
+import { parseMemberFields } from "@/lib/member-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
 interface TenantOption {
+  memberFields: string;
   slug: string;
   name: string;
 }
@@ -16,6 +19,8 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
     name: "",
     level: "",
   });
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
+  const fields = parseMemberFields(tenants.find(t => t.slug === form.tenantSlug)?.memberFields ?? "[]");
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +37,7 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
     try {
       const { status } = await apiPost<{ status: string }>(
         "/api/auth/join",
-        form,
+        { ...form, attributes },
       );
       setMsg(
         status === "APPROVED"
@@ -78,7 +83,7 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
           id="join-tenant"
           className="input"
           value={form.tenantSlug}
-          onChange={(e) => set("tenantSlug", e.target.value)}
+          onChange={(e) => { set("tenantSlug", e.target.value); setAttributes({}); }}
         >
           {tenants.map((t) => (
             <option key={t.slug} value={t.slug}>
@@ -100,19 +105,9 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
             required
           />
         </div>
-        <div>
-          <label className="label" htmlFor="join-level">
-            級數
-          </label>
-          <input
-            id="join-level"
-            className="input"
-            value={form.level}
-            onChange={(e) => set("level", e.target.value)}
-            required
-          />
-        </div>
+
       </div>
+      <MemberFields fields={fields} values={attributes} onChange={setAttributes} />
       <button type="submit" className="btn-brand w-full" disabled={loading}>
         {loading ? "送出中…" : "送出申請"}
       </button>

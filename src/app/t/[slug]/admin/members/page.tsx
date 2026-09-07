@@ -1,3 +1,6 @@
+import { InvitationList } from "@/components/admin/InvitationList";
+import { InviteMember } from "@/components/admin/InviteMember";
+import { parseMemberFields, memberAttributeSummary } from "@/lib/member-fields";
 import { pageTenantContext } from "@/lib/page";
 import { prisma } from "@/lib/db";
 import { MembershipStatus, TenantRole } from "@/lib/constants";
@@ -13,6 +16,12 @@ export default async function MembersPage({
   const { slug } = await params;
   const { ctx } = await pageTenantContext(slug, { admin: true });
 
+  const fields = parseMemberFields(ctx.tenant.memberFields);
+  const invitations = await prisma.invitation.findMany({
+    where: { tenantId: ctx.tenant.id, consumedAt: null, expiresAt: { gt: new Date() } },
+    select: { id: true, name: true, expiresAt: true },
+    orderBy: { createdAt: "desc" },
+  });
   const pending = await prisma.membership.findMany({
     where: { tenantId: ctx.tenant.id, status: MembershipStatus.PENDING },
     include: { user: true },
@@ -30,6 +39,8 @@ export default async function MembersPage({
 
   return (
     <div className="flex flex-col gap-8">
+      <InviteMember slug={slug} fields={fields} />
+      <InvitationList slug={slug} invitations={invitations.map(i => ({ ...i, expiresAt: i.expiresAt.toISOString() }))} />
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">待審核申請 ({pending.length})</h2>
         {pending.length === 0 ? (
@@ -41,8 +52,8 @@ export default async function MembersPage({
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
                   <dt className="text-slate-500">名稱</dt>
                   <dd className="font-medium">{m.name}</dd>
-                  <dt className="text-slate-500">級數</dt>
-                  <dd>{m.level}</dd>
+                  <dt className="text-slate-500">成員資料</dt>
+                  <dd>{memberAttributeSummary(fields, m.attributes, m.level) || "—"}</dd>
                   <dt className="text-slate-500">帳號</dt>
                   <dd>{m.user.username}</dd>
                   <dt className="text-slate-500">Email</dt>
@@ -71,7 +82,7 @@ export default async function MembersPage({
               <thead>
                 <tr className="border-b text-slate-500">
                   <th className="py-2 pr-4 font-medium">名稱</th>
-                  <th className="py-2 pr-4 font-medium">級數</th>
+                  <th className="py-2 pr-4 font-medium">成員資料</th>
                   <th className="py-2 pr-4 font-medium">帳號</th>
                   <th className="py-2 pr-4 font-medium">角色</th>
                   <th className="py-2 pr-4 font-medium">狀態</th>
@@ -82,7 +93,7 @@ export default async function MembersPage({
                 {roster.map((m) => (
                   <tr key={m.id} className="border-b last:border-b-0">
                     <td className="py-2 pr-4 font-medium">{m.name}</td>
-                    <td className="py-2 pr-4">{m.level}</td>
+                    <td className="py-2 pr-4">{memberAttributeSummary(fields, m.attributes, m.level) || "—"}</td>
                     <td className="py-2 pr-4">{m.user.username}</td>
                     <td className="py-2 pr-4">
                       {m.role === TenantRole.ADMIN ? "管理者" : "成員"}

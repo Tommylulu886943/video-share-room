@@ -1,11 +1,14 @@
 "use client";
 
+import { MemberFields } from "@/components/forms/MemberFields";
+import { parseMemberFields } from "@/lib/member-fields";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
 interface TenantOption {
+  memberFields: string;
   slug: string;
   name: string;
 }
@@ -32,6 +35,8 @@ export function RegisterForm({
     password: "",
   });
   const router = useRouter();
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
+  const fields = parseMemberFields(tenants.find(t => t.slug === form.tenantSlug)?.memberFields ?? "[]");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RegisterResult | null>(null);
@@ -45,7 +50,7 @@ export function RegisterForm({
     setError(null);
     setLoading(true);
     try {
-      const res = await apiPost<RegisterResult>("/api/auth/register", form);
+      const res = await apiPost<RegisterResult>("/api/auth/register", { ...form, attributes });
       if (res.redirect) {
         // Auto-approved → already logged in; go straight to the club.
         router.push(res.redirect);
@@ -96,7 +101,7 @@ export function RegisterForm({
           id="tenantSlug"
           className="input"
           value={form.tenantSlug}
-          onChange={(e) => set("tenantSlug", e.target.value)}
+          onChange={(e) => { set("tenantSlug", e.target.value); setAttributes({}); }}
           required
         >
           {tenants.map((t) => (
@@ -120,19 +125,7 @@ export function RegisterForm({
             required
           />
         </div>
-        <div>
-          <label className="label" htmlFor="level">
-            級數
-          </label>
-          <input
-            id="level"
-            className="input"
-            placeholder="如：三段 / B 組"
-            value={form.level}
-            onChange={(e) => set("level", e.target.value)}
-            required
-          />
-        </div>
+
       </div>
       <div>
         <label className="label" htmlFor="username">
@@ -176,6 +169,7 @@ export function RegisterForm({
           required
         />
       </div>
+      <MemberFields fields={fields} values={attributes} onChange={setAttributes} />
       <button type="submit" className="btn-brand w-full" disabled={loading}>
         {loading ? "送出中…" : "送出申請"}
       </button>

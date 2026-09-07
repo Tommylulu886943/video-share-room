@@ -1,5 +1,8 @@
 "use client";
 
+import { MemberFields } from "@/components/forms/MemberFields";
+import { MemberFieldEditor } from "@/components/admin/MemberFieldEditor";
+import type { MemberField } from "@/lib/member-fields";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
@@ -15,7 +18,9 @@ export function TenantCreateForm() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminName, setAdminName] = useState("");
-  const [adminLevel, setAdminLevel] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [memberFields, setMemberFields] = useState<MemberField[]>([]);
+  const [adminAttributes, setAdminAttributes] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,7 +33,9 @@ export function TenantCreateForm() {
     setAdminEmail("");
     setAdminPassword("");
     setAdminName("");
-    setAdminLevel("");
+    setIsPrivate(false);
+    setMemberFields([]);
+    setAdminAttributes({});
     setError("");
   }
 
@@ -46,7 +53,7 @@ export function TenantCreateForm() {
         adminEmail,
         adminPassword: adminPassword || undefined,
         adminName,
-        adminLevel: adminLevel || undefined,
+        isPrivate, memberFields, adminAttributes,
       });
       reset();
       setOpen(false);
@@ -121,6 +128,14 @@ export function TenantCreateForm() {
             </div>
           </div>
 
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} />
+            <span>不公開社團<span className="mt-1 block text-xs text-slate-500">不會出現在註冊或申請清單；只有管理者邀請的成員可以加入。平台管理者仍可管理社團。</span></span>
+          </label>
+          <MemberFieldEditor fields={memberFields} onChange={fields => {
+            setMemberFields(fields);
+            setAdminAttributes(values => Object.fromEntries(fields.filter(f => f.id in values).map(f => [f.id, values[f.id]])));
+          }} />
           <div className="border-t border-slate-200 pt-4">
             <h3 className="mb-3 text-sm font-semibold text-slate-700">
               指派管理者
@@ -178,19 +193,11 @@ export function TenantCreateForm() {
                   required
                 />
               </div>
-              <div>
-                <label className="label" htmlFor="a-level">
-                  管理者級數（選填）
-                </label>
-                <input
-                  id="a-level"
-                  className="input"
-                  value={adminLevel}
-                  onChange={(e) => setAdminLevel(e.target.value)}
-                />
-              </div>
+
             </div>
           </div>
+
+          <MemberFields fields={memberFields} values={adminAttributes} onChange={setAdminAttributes} prefix="admin" />
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 

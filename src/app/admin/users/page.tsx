@@ -1,8 +1,13 @@
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PlatformRole, TenantRole } from "@/lib/constants";
 
 export default async function AdminUsersPage() {
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (session.platformRole !== "SUPER_ADMIN") redirect("/");
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "asc" },
     include: {

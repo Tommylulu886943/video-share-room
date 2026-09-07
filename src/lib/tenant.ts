@@ -34,6 +34,7 @@ export const resolveTenantContext = cache(async function resolveTenantContext(
     session?.memberships.find((m) => m.tenantId === tenant.id) ?? null;
 
   const approved = membership?.status === MembershipStatus.APPROVED;
+  if (tenant.isPrivate && !approved && !isSuperAdmin) return null;
   const isTenantAdmin = approved && membership?.role === TenantRole.ADMIN;
 
   const isAdmin = isSuperAdmin || isTenantAdmin;

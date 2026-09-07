@@ -14,24 +14,27 @@ datasource db {
 
 /// A sports club. Fully isolated tenant: its own members, videos, categories, tags.
 model Tenant {
-  id         String   @id @default(cuid())
-  slug       String   @unique
-  name       String
-  brandColor String   @default("#2563eb")
-  brandLogo  String? // emoji or short text mark used as the club logo
+  id                       String       @id @default(cuid())
+  slug                     String       @unique
+  name                     String
+  brandColor               String       @default("#2563eb")
+  isPrivate                Boolean      @default(false)
+  memberFields             String       @default("[]")
+  invitations              Invitation[]
+  brandLogo                String? // emoji or short text mark used as the club logo
   // Registration gates (default off = applicants are auto-approved, no email).
-  requireEmailVerification Boolean @default(false)
-  requireApproval          Boolean @default(false)
+  requireEmailVerification Boolean      @default(false)
+  requireApproval          Boolean      @default(false)
   // Category pre-selected on the board (null = show all). Plain id; the board
   // falls back to "all" if it no longer points to a live category.
-  defaultCategoryId String?
-  createdAt  DateTime @default(now())
+  defaultCategoryId        String?
+  createdAt                DateTime     @default(now())
 
-  memberships Membership[]
-  videos      Video[]
-  categories  Category[]
-  tags        Tag[]
-  auditLogs   AuditLog[]
+  memberships   Membership[]
+  videos        Video[]
+  categories    Category[]
+  tags          Tag[]
+  auditLogs     AuditLog[]
   announcements Announcement[]
 }
 
@@ -53,14 +56,14 @@ model Announcement {
 
 /// A global login account. One account can hold memberships across many tenants (D7).
 model User {
-  id            String   @id @default(cuid())
-  username      String   @unique
-  email         String   @unique
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
   passwordHash  String
-  emailVerified Boolean  @default(false)
-  platformRole  String   @default("USER") // "USER" | "SUPER_ADMIN"
+  emailVerified Boolean   @default(false)
+  platformRole  String    @default("USER") // "USER" | "SUPER_ADMIN"
   lastSeenAt    DateTime? // updated (throttled) on each authenticated request
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
   memberships    Membership[]
   tokens         Token[]
@@ -87,6 +90,7 @@ model Membership {
   userId       String
   tenantId     String
   name         String // display name shown to teammates in this club
+  attributes   String    @default("{}")
   level        String // sport level / rank in this club (e.g. kendo dan, badminton grade)
   role         String    @default("MEMBER") // "MEMBER" | "ADMIN"
   canUpload    Boolean   @default(false) // grant a non-admin member upload rights
@@ -206,4 +210,21 @@ model AuditLog {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
+}
+
+/// Single-use, account-bound invitation; only a hash of the secret is stored.
+model Invitation {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  tenantId    String
+  userId      String
+  invitedById String
+  name        String
+  attributes  String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
 }
