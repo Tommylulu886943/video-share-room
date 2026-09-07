@@ -10,6 +10,8 @@ const ACTION_LABEL: Record<string, string> = {
   "member.approve": "審核",
   "member.reject": "審核",
   "member.upload_permission": "權限",
+  "member.update": "成員",
+  "member.remove": "成員",
   "category.create": "分類",
   "category.delete": "分類",
   "tag.create": "標籤",

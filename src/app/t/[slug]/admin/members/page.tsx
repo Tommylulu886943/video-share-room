@@ -7,6 +7,7 @@ import { MembershipStatus, TenantRole } from "@/lib/constants";
 import { StatusBadge } from "@/components/StatusBadge";
 import { MemberReview } from "@/components/admin/MemberReview";
 import { MemberUploadToggle } from "@/components/admin/MemberUploadToggle";
+import { MemberActions } from "@/components/admin/MemberActions";
 
 export default async function MembersPage({
   params,
@@ -87,6 +88,7 @@ export default async function MembersPage({
                   <th className="py-2 pr-4 font-medium">角色</th>
                   <th className="py-2 pr-4 font-medium">狀態</th>
                   <th className="py-2 pr-4 font-medium">可上傳</th>
+                  <th className="py-2 font-medium">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,6 +115,22 @@ export default async function MembersPage({
                         <span className="text-xs text-slate-400">（管理者）</span>
                       ) : (
                         <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      {m.role === TenantRole.ADMIN ? (
+                        <span className="text-xs text-slate-400">—</span>
+                      ) : (
+                        <MemberActions
+                          slug={slug}
+                          fields={fields}
+                          member={{
+                            id: m.id,
+                            name: m.name,
+                            username: m.user.username,
+                            attributes: JSON.parse(m.attributes) as Record<string, string>,
+                          }}
+                        />
                       )}
                     </td>
                   </tr>
