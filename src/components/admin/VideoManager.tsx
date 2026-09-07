@@ -33,6 +33,7 @@ type CategoryNode = {
 
 type TagItem = { id: string; name: string };
 type MemberItem = { id: string; name: string; level: string };
+type ViewMode = "list" | "table";
 
 type Props = {
   slug: string;
@@ -76,6 +77,7 @@ export function VideoManager({
   const [query, setQuery] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [sortBy, setSortBy] = useState("new");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
@@ -390,7 +392,7 @@ export function VideoManager({
               )}
             </div>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 lg:flex-row">
           <div className="relative flex-1">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               🔍
@@ -442,6 +444,36 @@ export function VideoManager({
               ✕ 清除
             </button>
           )}
+          <div
+            className="grid grid-cols-2 rounded-lg border border-slate-300 bg-white p-1"
+            role="group"
+            aria-label="影片顯示方式"
+          >
+            <button
+              type="button"
+              aria-pressed={viewMode === "list"}
+              onClick={() => setViewMode("list")}
+              className={`flex min-h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition ${
+                viewMode === "list"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              }`}
+            >
+              <span aria-hidden>☰</span> 清單
+            </button>
+            <button
+              type="button"
+              aria-pressed={viewMode === "table"}
+              onClick={() => setViewMode("table")}
+              className={`flex min-h-9 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition ${
+                viewMode === "table"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              }`}
+            >
+              <span aria-hidden>▦</span> 表格
+            </button>
+          </div>
           </div>
         </div>
       )}
@@ -825,98 +857,115 @@ export function VideoManager({
             清除篩選條件
           </button>
         </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+      ) : viewMode === "list" ? (
+        <div className="space-y-3">
           {visibleVideos.map((v) => (
-            <div
+            <article
               key={v.id}
-              className={`card relative overflow-hidden ${
+              className={`card flex overflow-hidden transition sm:min-h-36 ${
                 selectedIds.includes(v.id) ? "ring-2 ring-[var(--brand)]" : ""
               }`}
             >
               {canManage && (
-                <label className="absolute left-3 top-3 z-10 grid h-9 w-9 cursor-pointer place-items-center rounded-lg bg-white/95 shadow">
+                <label className="grid w-11 shrink-0 cursor-pointer place-items-center border-r border-slate-100 bg-slate-50/70">
                   <input
                     type="checkbox"
                     aria-label={`選取 ${v.title}`}
                     checked={selectedIds.includes(v.id)}
                     onChange={() => toggleVideo(v.id)}
-                    className="h-4 w-4 accent-[var(--brand)]"
+                    className="h-5 w-5 accent-[var(--brand)]"
                   />
                 </label>
               )}
-              {v.posterUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={v.posterUrl}
-                  alt={v.title}
-                  referrerPolicy="no-referrer"
-                  className="aspect-video w-full object-cover"
-                />
-              ) : (
-                <div className="grid aspect-video w-full place-items-center bg-slate-200 text-xs text-slate-500">
-                  無縮圖
-                </div>
-              )}
-              <div className="space-y-2 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold">{v.title}</h3>
-                  <span className="shrink-0 text-xs text-slate-400">
-                    👁 {v.viewCount.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {v.categoryLabel && (
-                    <span className="chip bg-slate-100 text-slate-600">
-                      {v.categoryLabel}
-                    </span>
-                  )}
-                  {v.tags.map((t) => (
-                    <span
-                      key={t}
-                      className="chip bg-[var(--brand)]/10 text-[var(--brand)]"
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div>
-                  {v.visibility === Visibility.RESTRICTED ? (
-                    <span className="chip bg-amber-100 text-amber-700">
-                      🔒受限（{v.accessCount} 人）
-                    </span>
-                  ) : (
-                    <span className="chip bg-emerald-100 text-emerald-700">
-                      全社團
-                    </span>
-                  )}
-                </div>
-                {v.recordedOn && (
-                  <p className="text-xs text-slate-400">
-                    拍攝日期：{v.recordedOn}
-                  </p>
-                )}
-                {canManage && (
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      onClick={() => startEdit(v)}
-                    >
-                      編輯
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={() => handleDelete(v.id)}
-                    >
-                      刪除
-                    </button>
-                  </div>
+              <div className="hidden w-52 shrink-0 bg-slate-100 sm:block">
+                {v.posterUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={v.posterUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="grid h-full place-items-center text-xs text-slate-400">無縮圖</div>
                 )}
               </div>
-            </div>
+              <div className="min-w-0 flex-1 p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="line-clamp-2 font-semibold text-slate-900">{v.title}</h3>
+                  <span className="shrink-0 text-xs text-slate-400">👁 {v.viewCount.toLocaleString()}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {v.categoryLabel && <span className="chip bg-slate-100 text-slate-600">{v.categoryLabel}</span>}
+                  {v.tags.map((t) => <span key={t} className="chip bg-[var(--brand)]/10 text-[var(--brand)]">{t}</span>)}
+                  {v.visibility === Visibility.RESTRICTED ? (
+                    <span className="chip bg-amber-100 text-amber-700">🔒 受限（{v.accessCount} 人）</span>
+                  ) : (
+                    <span className="chip bg-emerald-100 text-emerald-700">全社團</span>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                  <span>拍攝日期：{v.recordedOn ?? "未設定"}</span>
+                  {canManage && (
+                    <span className="ml-auto flex gap-2">
+                      <button type="button" className="btn-outline !px-3 !py-1.5" onClick={() => startEdit(v)}>編輯</button>
+                      <button type="button" className="btn-danger !px-3 !py-1.5" onClick={() => handleDelete(v.id)}>刪除</button>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </article>
           ))}
+        </div>
+      ) : (
+        <div className="card overflow-hidden">
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[820px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <tr>
+                  {canManage && (
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label="選取目前結果"
+                        checked={visibleVideos.every((video) => selectedIds.includes(video.id))}
+                        onChange={toggleAllVisible}
+                        className="h-4 w-4 accent-[var(--brand)]"
+                      />
+                    </th>
+                  )}
+                  <th className="px-4 py-3">影片名稱</th>
+                  <th className="px-4 py-3">拍攝日期</th>
+                  <th className="px-4 py-3">分類／標籤</th>
+                  <th className="px-4 py-3">權限</th>
+                  <th className="px-4 py-3 text-right">觀看</th>
+                  {canManage && <th className="px-4 py-3 text-right">操作</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visibleVideos.map((v) => (
+                  <tr key={v.id} className={selectedIds.includes(v.id) ? "bg-[var(--brand)]/5" : "hover:bg-slate-50/70"}>
+                    {canManage && <td className="px-4 py-3"><input type="checkbox" aria-label={`選取 ${v.title}`} checked={selectedIds.includes(v.id)} onChange={() => toggleVideo(v.id)} className="h-4 w-4 accent-[var(--brand)]" /></td>}
+                    <td className="max-w-xs px-4 py-3"><p className="line-clamp-2 font-medium text-slate-900">{v.title}</p></td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">{v.recordedOn ?? "未設定"}</td>
+                    <td className="max-w-xs px-4 py-3"><div className="flex flex-wrap gap-1">{v.categoryLabel && <span className="chip bg-slate-100 text-slate-600">{v.categoryLabel}</span>}{v.tags.map((t) => <span key={t} className="chip bg-[var(--brand)]/10 text-[var(--brand)]">{t}</span>)}{!v.categoryLabel && v.tags.length === 0 && <span className="text-slate-400">—</span>}</div></td>
+                    <td className="px-4 py-3">{v.visibility === Visibility.RESTRICTED ? <span className="chip bg-amber-100 text-amber-700">🔒 {v.accessCount} 人</span> : <span className="chip bg-emerald-100 text-emerald-700">全社團</span>}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-600">{v.viewCount.toLocaleString()}</td>
+                    {canManage && <td className="px-4 py-3"><div className="flex justify-end gap-1"><button type="button" className="btn-ghost !px-2.5 !py-1.5" onClick={() => startEdit(v)}>編輯</button><button type="button" className="btn-ghost !px-2.5 !py-1.5 text-red-600" onClick={() => handleDelete(v.id)}>刪除</button></div></td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="divide-y divide-slate-100 md:hidden">
+            {visibleVideos.map((v) => (
+              <article key={v.id} className={`flex gap-3 p-3 ${selectedIds.includes(v.id) ? "bg-[var(--brand)]/5" : ""}`}>
+                {canManage && <input type="checkbox" aria-label={`選取 ${v.title}`} checked={selectedIds.includes(v.id)} onChange={() => toggleVideo(v.id)} className="mt-1 h-5 w-5 shrink-0 accent-[var(--brand)]" />}
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-slate-900">{v.title}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{v.recordedOn ?? "未設定日期"} · 👁 {v.viewCount.toLocaleString()}</p>
+                  <div className="mt-2 flex flex-wrap gap-1">{v.categoryLabel && <span className="chip bg-slate-100 text-slate-600">{v.categoryLabel}</span>}{v.tags.map((t) => <span key={t} className="chip bg-[var(--brand)]/10 text-[var(--brand)]">{t}</span>)}{v.visibility === Visibility.RESTRICTED ? <span className="chip bg-amber-100 text-amber-700">🔒 受限</span> : <span className="chip bg-emerald-100 text-emerald-700">全社團</span>}</div>
+                  {canManage && <div className="mt-3 flex gap-2"><button type="button" className="btn-outline !px-3 !py-1.5" onClick={() => startEdit(v)}>編輯</button><button type="button" className="btn-ghost !px-3 !py-1.5 text-red-600" onClick={() => handleDelete(v.id)}>刪除</button></div>}
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       )}
     </div>
