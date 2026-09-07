@@ -197,7 +197,7 @@ export default async function AdminDashboardPage({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
               <h2 className="font-semibold">近 7 日新增影片</h2>
@@ -222,7 +222,7 @@ export default async function AdminDashboardPage({
           </div>
         </section>
 
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-4">
             <h2 className="font-semibold">影片分類分布</h2>
             <p className="text-sm text-slate-500">依第一層分類彙整</p>
@@ -251,7 +251,7 @@ export default async function AdminDashboardPage({
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="font-semibold">今日上線會員</h2>
@@ -283,7 +283,7 @@ export default async function AdminDashboardPage({
           )}
         </section>
 
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-4">
             <h2 className="font-semibold">熱門影片</h2>
             <p className="text-sm text-slate-500">依累積觀看次數排序</p>
