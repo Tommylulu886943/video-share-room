@@ -1,3 +1,4 @@
+import { viewableTagWhere, viewableVideoWhere } from "@/lib/access";
 import { pageTenantContext } from "@/lib/page";
 import { prisma } from "@/lib/db";
 import { getFlatCategories, buildTree, categoryLabel } from "@/lib/categories";
@@ -15,12 +16,12 @@ export default async function UploadPage({
   // Admins, super admins, or members granted canUpload (others redirected).
   const { ctx } = await pageTenantContext(slug, { upload: true });
 
-  const flat = await getFlatCategories(ctx.tenant.id);
+  const flat = await getFlatCategories(ctx.tenant.id, ctx);
   const categoryTree = buildTree(flat);
 
   const [allTags, members, videos] = await Promise.all([
     prisma.tag.findMany({
-      where: { tenantId: ctx.tenant.id },
+      where: viewableTagWhere(ctx),
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),
@@ -30,7 +31,7 @@ export default async function UploadPage({
       select: { id: true, name: true, level: true },
     }),
     prisma.video.findMany({
-      where: { tenantId: ctx.tenant.id },
+      where: viewableVideoWhere(ctx),
       orderBy: { createdAt: "desc" },
       include: {
         tags: { include: { tag: true } },

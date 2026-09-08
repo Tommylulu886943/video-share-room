@@ -79,7 +79,7 @@ export const PATCH = route(
     }
     if (input.visibility !== undefined) data.visibility = input.visibility;
     if (input.categoryId !== undefined) {
-      const categoryId = await validateCategory(ctx.tenant.id, input.categoryId);
+      const categoryId = await validateCategory(ctx.tenant.id, input.categoryId, ctx);
       data.category = categoryId
         ? { connect: { id: categoryId } }
         : { disconnect: true };
@@ -93,7 +93,7 @@ export const PATCH = route(
     // the create route uses) run as one atomic statement batch instead. Validate
     // the ids first (reads), then write once.
     if (input.tagIds !== undefined) {
-      const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
+      const tagIds = await validateTags(ctx.tenant.id, input.tagIds, ctx);
       data.tags = {
         deleteMany: {},
         create: tagIds.map((tagId) => ({ tagId })),

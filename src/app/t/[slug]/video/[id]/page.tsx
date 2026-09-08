@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
-import { canViewVideo } from "@/lib/access";
+import { viewableVideoWhere } from "@/lib/access";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { ViewTracker } from "@/components/ViewTracker";
 import { FavoriteStar } from "@/components/FavoriteStar";
@@ -23,8 +23,8 @@ export default async function VideoPage({
   const { slug, id } = await params;
   const { session, ctx } = await pageTenantContext(slug);
 
-  const video = await prisma.video.findUnique({
-    where: { id },
+  const video = await prisma.video.findFirst({
+    where: { AND: [{ id }, viewableVideoWhere(ctx)] },
     include: {
       category: { include: { parent: true } },
       tags: { include: { tag: true } },
@@ -35,7 +35,7 @@ export default async function VideoPage({
   });
 
   // Wrong tenant, missing, or not permitted → 404 (don't leak existence).
-  if (!video || video.tenantId !== ctx.tenant.id || !canViewVideo(ctx, video)) {
+  if (!video) {
     notFound();
   }
 

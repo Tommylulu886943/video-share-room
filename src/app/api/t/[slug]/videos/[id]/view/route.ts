@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { canViewVideo } from "@/lib/access";
+import { viewableVideoWhere } from "@/lib/access";
 import {
   ApiError,
   jsonOk,
@@ -19,11 +19,11 @@ export const POST = route(
     const { slug, id } = await params;
     const { ctx } = await requireTenantContext(slug);
 
-    const video = await prisma.video.findUnique({
-      where: { id },
+    const video = await prisma.video.findFirst({
+      where: { AND: [{ id }, viewableVideoWhere(ctx)] },
       include: { access: { select: { membershipId: true } } },
     });
-    if (!video || video.tenantId !== ctx.tenant.id || !canViewVideo(ctx, video)) {
+    if (!video) {
       throw new ApiError(404, "找不到影片");
     }
 

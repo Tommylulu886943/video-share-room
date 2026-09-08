@@ -103,6 +103,8 @@ model Membership {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   videoAccess VideoAccess[]
+  categoryAccess CategoryAccess[]
+  tagAccess TagAccess[]
 
   @@unique([userId, tenantId])
   @@index([tenantId, status])
@@ -110,6 +112,8 @@ model Membership {
 
 /// Two-level category tree (parentId null = top level). Maintained by tenant admins (D5).
 model Category {
+  visibility String @default("PUBLIC")
+  access CategoryAccess[]
   id        String  @id @default(cuid())
   tenantId  String
   name      String
@@ -126,6 +130,8 @@ model Category {
 
 /// Tag list maintained only by admins (D4); members pick from it.
 model Tag {
+  visibility String @default("PUBLIC")
+  access TagAccess[]
   id        String @id @default(cuid())
   tenantId  String
   name      String
@@ -227,4 +233,19 @@ model Invitation {
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId])
+}
+
+model CategoryAccess {
+  categoryId String
+  membershipId String
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@id([categoryId, membershipId])
+}
+model TagAccess {
+  tagId String
+  membershipId String
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  @@id([tagId, membershipId])
 }

@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 
+import type { TenantContext } from "@/lib/tenant";
+import { viewableCategoryWhere } from "@/lib/access";
+
 export interface FlatCategory {
   id: string;
   name: string;
@@ -13,9 +16,10 @@ export interface CategoryNode extends FlatCategory {
 
 export async function getFlatCategories(
   tenantId: string,
+  ctx?: TenantContext,
 ): Promise<FlatCategory[]> {
   return prisma.category.findMany({
-    where: { tenantId },
+    where: ctx ? viewableCategoryWhere(ctx) : { tenantId },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, parentId: true, sortOrder: true },
   });

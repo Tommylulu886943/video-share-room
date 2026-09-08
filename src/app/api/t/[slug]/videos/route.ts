@@ -42,8 +42,8 @@ export const POST = route(
     const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
     const recordedOn =
       parseRecordedOn(input.recordedOn || undefined) ?? prefixDate;
-    const categoryId = await validateCategory(ctx.tenant.id, input.categoryId);
-    const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
+    const categoryId = await validateCategory(ctx.tenant.id, input.categoryId, ctx);
+    const tagIds = await validateTags(ctx.tenant.id, input.tagIds, ctx);
     const restricted = input.visibility === Visibility.RESTRICTED;
     const accessIds = restricted
       ? await validateAccessMemberships(ctx.tenant.id, input.accessMembershipIds)

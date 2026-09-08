@@ -2,6 +2,7 @@ import { BoardFilters } from "@/components/BoardFilters";
 import { CategorySidebar } from "@/components/CategorySidebar";
 import { VideoCard, type VideoCardData } from "@/components/VideoCard";
 import { prisma } from "@/lib/db";
+import { viewableTagWhere } from "@/lib/access";
 import { pageTenantContext } from "@/lib/page";
 import { viewableVideoWhere } from "@/lib/access";
 import { videoPoster } from "@/lib/sources";
@@ -41,9 +42,9 @@ export default async function BoardPage({
   const q = (sp.q ?? "").trim();
 
   const [flatCategories, tags, announcements, latestVideo] = await Promise.all([
-    getFlatCategories(ctx.tenant.id),
+    getFlatCategories(ctx.tenant.id, ctx),
     prisma.tag.findMany({
-      where: { tenantId: ctx.tenant.id },
+      where: viewableTagWhere(ctx),
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),

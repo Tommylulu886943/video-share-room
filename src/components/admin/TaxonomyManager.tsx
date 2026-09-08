@@ -4,17 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPatch, apiDelete } from "@/lib/client";
 
-type Child = { id: string; name: string };
-type TopCategory = { id: string; name: string; children: Child[] };
+import { TaxonomyPermissions, type TaxonomyPermissionItem, type PermissionMember } from "./TaxonomyPermissions";
+
+type Child = TaxonomyPermissionItem;
+type TopCategory = Child & { children: Child[] };
 
 export function TaxonomyManager({
   slug,
   tree,
   tags,
+  members,
 }: {
   slug: string;
   tree: TopCategory[];
-  tags: { id: string; name: string }[];
+  tags: Child[];
+  members: PermissionMember[];
 }) {
   const router = useRouter();
 
@@ -218,13 +222,15 @@ export function TaxonomyManager({
                   </div>
                 </div>
 
+                <TaxonomyPermissions slug={slug} kind="categories" item={top} members={members} />
+
                 <ul className="mt-3 space-y-2 border-l border-slate-200 pl-4">
                   {top.children.map((child) => {
                     const childEditing = editing[child.id] !== undefined;
                     return (
                       <li
                         key={child.id}
-                        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+                        className="flex flex-wrap items-center gap-2"
                       >
                         {childEditing ? (
                           <input
@@ -280,6 +286,7 @@ export function TaxonomyManager({
                             </>
                           )}
                         </div>
+                        <TaxonomyPermissions slug={slug} kind="categories" item={child} members={members} inherited />
                       </li>
                     );
                   })}
@@ -338,9 +345,9 @@ export function TaxonomyManager({
             <span className="text-sm text-slate-500">目前尚無標籤。</span>
           ) : null}
           {tags.map((tag) => (
-            <span
+            <div
               key={tag.id}
-              className="chip bg-slate-100 text-slate-600 inline-flex items-center gap-1"
+              className="w-full rounded-lg border border-slate-200 p-3 text-sm"
             >
               {tag.name}
               <button
@@ -351,7 +358,8 @@ export function TaxonomyManager({
               >
                 ✕
               </button>
-            </span>
+              <TaxonomyPermissions slug={slug} kind="tags" item={tag} members={members} />
+            </div>
           ))}
         </div>
       </section>

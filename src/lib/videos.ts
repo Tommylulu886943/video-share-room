@@ -2,12 +2,16 @@ import { prisma } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { MembershipStatus } from "@/lib/constants";
 
+import type { TenantContext } from "@/lib/tenant";
+import { viewableCategoryWhere, viewableTagWhere } from "@/lib/access";
+
 export async function validateCategory(
   tenantId: string,
   categoryId: string | null | undefined,
+  ctx?: TenantContext,
 ): Promise<string | null> {
   if (!categoryId) return null;
-  const cat = await prisma.category.findUnique({ where: { id: categoryId } });
+  const cat = await prisma.category.findFirst({ where: { id: categoryId, ...(ctx ? viewableCategoryWhere(ctx) : { tenantId }) } });
   if (!cat || cat.tenantId !== tenantId) {
     throw new ApiError(400, "選擇的分類不存在");
   }
@@ -17,11 +21,12 @@ export async function validateCategory(
 export async function validateTags(
   tenantId: string,
   tagIds: string[],
+  ctx?: TenantContext,
 ): Promise<string[]> {
   const unique = [...new Set(tagIds)];
   if (unique.length === 0) return [];
   const found = await prisma.tag.findMany({
-    where: { id: { in: unique }, tenantId },
+    where: { id: { in: unique }, ...(ctx ? viewableTagWhere(ctx) : { tenantId }) },
     select: { id: true },
   });
   if (found.length !== unique.length) {

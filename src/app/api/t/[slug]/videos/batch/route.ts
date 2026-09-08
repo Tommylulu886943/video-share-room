@@ -28,8 +28,8 @@ export const POST = route(
     const input = videoBatchSchema.parse(await readJson(req));
 
     // Shared settings are validated once for the whole batch.
-    const categoryId = await validateCategory(ctx.tenant.id, input.categoryId);
-    const tagIds = await validateTags(ctx.tenant.id, input.tagIds);
+    const categoryId = await validateCategory(ctx.tenant.id, input.categoryId, ctx);
+    const tagIds = await validateTags(ctx.tenant.id, input.tagIds, ctx);
     const restricted = input.visibility === Visibility.RESTRICTED;
     const accessIds = restricted
       ? await validateAccessMemberships(ctx.tenant.id, input.accessMembershipIds)
@@ -108,9 +108,9 @@ export const PATCH = route(
     const categoryId =
       input.categoryId === undefined
         ? undefined
-        : await validateCategory(ctx.tenant.id, input.categoryId);
+        : await validateCategory(ctx.tenant.id, input.categoryId, ctx);
     const tagIds = input.tags
-      ? await validateTags(ctx.tenant.id, input.tags.tagIds)
+      ? await validateTags(ctx.tenant.id, input.tags.tagIds, ctx)
       : [];
 
     for (const { id } of owned) {
