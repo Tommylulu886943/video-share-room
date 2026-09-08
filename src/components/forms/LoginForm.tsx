@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
-export function LoginForm() {
+export function LoginForm({ stayOnPage = false }: { stayOnPage?: boolean }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +20,7 @@ export function LoginForm() {
         "/api/auth/login",
         { identifier, password },
       );
-      router.push(redirect);
+      if (!stayOnPage) router.push(redirect);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "登入失敗");

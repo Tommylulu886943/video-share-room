@@ -40,7 +40,7 @@ export const POST = route(
     for (const raw of input.items) {
       const ref = parseVideoRef(raw);
       if (!ref) {
-        failed.push({ input: raw, reason: "無法辨識的 YouTube 或 Bilibili 連結" });
+        failed.push({ input: raw, reason: "請輸入有效的 HTTP(S) 網址或影片 ID" });
       } else {
         valid.push({ input: raw, source: ref.source, id: ref.id });
       }

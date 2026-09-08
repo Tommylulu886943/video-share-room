@@ -91,7 +91,7 @@ export function BatchUpload({
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div className="space-y-1">
             <label className="label" htmlFor="batch-text">
-              影片連結 YouTube / Bilibili / Instagram（每行一個，最多 50 部）
+              影片或網頁連結（每行一個，最多 50 筆）
             </label>
             <textarea
               id="batch-text"
@@ -102,7 +102,7 @@ export function BatchUpload({
               placeholder={"https://youtu.be/xxxxxxxxxxx\nhttps://www.bilibili.com/video/BVxxxxxxxxxx"}
             />
             <p className="text-xs text-slate-500">
-              已輸入 {lines.length} 個・標題會自動帶入各影片的標題。
+              已輸入 {lines.length} 個・支援的平台會帶入標題，其他網站以網域名稱命名。
             </p>
           </div>
 

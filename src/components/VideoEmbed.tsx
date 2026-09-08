@@ -6,6 +6,7 @@ import {
   sourceGradient,
   SOURCE_LABEL,
   type VideoSource,
+  parseWebUrl,
 } from "@/lib/sources";
 
 /**
@@ -28,6 +29,16 @@ export function VideoEmbed({
   const [playing, setPlaying] = useState(source === "instagram");
   const [broken, setBroken] = useState(false);
   const label = SOURCE_LABEL[source as VideoSource] ?? source;
+
+  if (source === "link") {
+    const href = parseWebUrl(videoId);
+    return (
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-center text-white">
+        <p>此內容請至原網站觀看</p>
+        {href && <a href={href} target="_blank" rel="noopener noreferrer" className="btn-brand">開啟原站 ↗</a>}
+      </div>
+    );
+  }
 
   if (playing) {
     return (

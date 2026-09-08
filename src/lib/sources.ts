@@ -1,13 +1,25 @@
 // Video source abstraction (YouTube + Bilibili). Pure module (no deps) so it can
 // be imported by server code and standalone scripts alike.
 
-export type VideoSource = "youtube" | "bilibili" | "instagram";
+export type VideoSource = "youtube" | "bilibili" | "instagram" | "link";
 
 export const SOURCE_LABEL: Record<VideoSource, string> = {
   youtube: "YouTube",
   bilibili: "Bilibili",
   instagram: "Instagram",
+  link: "外部連結",
 };
+
+/** Only durable web URLs; never allow executable URLs or embedded credentials. */
+export function parseWebUrl(input: string): string | null {
+  try {
+    const url = new URL(input.trim());
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.href.length > 8192) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
 
 function parseYouTube(s: string): string | null {
   if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
@@ -68,13 +80,15 @@ export function parseVideoRef(
   input: string,
 ): { source: VideoSource; id: string } | null {
   const s = input.trim();
+  if (s.includes(":") && !parseWebUrl(s)) return null;
   const yt = parseYouTube(s);
   if (yt) return { source: "youtube", id: yt };
   const bv = parseBilibili(s);
   if (bv) return { source: "bilibili", id: bv };
   const ig = parseInstagram(s);
   if (ig) return { source: "instagram", id: ig };
-  return null;
+  const url = parseWebUrl(s);
+  return url ? { source: "link", id: url } : null;
 }
 
 export function youtubeThumb(id: string): string {
@@ -87,6 +101,7 @@ export function videoEmbed(
   id: string,
   autoplay = false,
 ): string {
+  if (source === "link") return ""; // Arbitrary sites must never become iframes.
   if (source === "bilibili") {
     const ref = id.toLowerCase().startsWith("av")
       ? `aid=${id.slice(2)}`
@@ -101,6 +116,7 @@ export function videoEmbed(
 }
 
 export function videoWatchUrl(source: string, id: string): string {
+  if (source === "link") return parseWebUrl(id) ?? "";
   if (source === "bilibili") return `https://www.bilibili.com/video/${id}`;
   if (source === "instagram") return `https://www.instagram.com/reel/${id}/`;
   return `https://www.youtube.com/watch?v=${id}`;

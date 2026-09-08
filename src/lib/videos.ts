@@ -126,6 +126,10 @@ export async function resolveVideoMeta(
   id: string,
 ): Promise<{ rawTitle: string; thumbnailUrl: string | null }> {
   const given = provided?.trim()?.slice(0, 140) || null;
+  if (source === "link") {
+    // Do not fetch arbitrary user URLs on the server (SSRF).
+    return { rawTitle: given || new URL(id).hostname, thumbnailUrl: null };
+  }
   if (source === "instagram") {
     // Instagram's metadata API needs a Meta token and covers are signed/expiring,
     // so there's no reliable auto title/thumbnail — rely on the embed + placeholder.

@@ -15,6 +15,8 @@
 
 ## 快速開始
 
+Chrome 快速匯入插件已放在 [`extensions/courtside`](extensions/courtside/README.md)：可帶入目前頁面的網址與標題，選擇社團並記住預設 tenant。YouTube、Bilibili、Instagram 使用既有播放器，其他 HTTP(S) 網頁儲存為原站連結。
+
 ```bash
 npm install
 npx prisma migrate dev      # 建立 SQLite 結構（或 npm run db:migrate）

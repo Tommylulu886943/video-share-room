@@ -639,7 +639,7 @@ export function VideoManager({
 
           <div className="space-y-1">
             <label className="label" htmlFor="vm-youtube">
-              影片連結（YouTube / Bilibili / Instagram）
+              影片或網頁連結（YouTube / Bilibili / Instagram / 其他網站）
             </label>
             {editing && (
               <p className="text-xs text-slate-500">
@@ -663,7 +663,7 @@ export function VideoManager({
               placeholder={
                 editing
                   ? "留空＝維持原影片；貼上新連結才會更換"
-                  : "貼上 YouTube / Bilibili / Instagram Reel 連結"
+                  : "貼上影片或任意 HTTP(S) 網頁連結"
               }
               required={!editing}
             />

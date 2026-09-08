@@ -46,7 +46,7 @@ export const PATCH = route(
     const sourceChanged = Boolean(input.youtube);
     if (input.youtube) {
       const ref = parseVideoRef(input.youtube);
-      if (!ref) throw new ApiError(400, "無法辨識的 YouTube 或 Bilibili 連結");
+      if (!ref) throw new ApiError(400, "請輸入有效的 HTTP(S) 網址或影片 ID");
       finalSource = ref.source;
       finalId = ref.id;
       data.source = ref.source;

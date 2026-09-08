@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "場邊 Courtside 快速匯入",
+  "version": "1.0.0",
+  "description": "將目前網頁匯入場邊，支援任意網站，並可選擇或記住預設社團。",
+  "permissions": ["activeTab"],
+  "action": {
+    "default_title": "匯入場邊",
+    "default_popup": "popup.html"
+  }
+}

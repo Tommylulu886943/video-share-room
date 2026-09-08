@@ -29,7 +29,7 @@ export const POST = route(
     const input = videoCreateSchema.parse(await readJson(req));
 
     const ref = parseVideoRef(input.youtube);
-    if (!ref) throw new ApiError(400, "無法辨識的 YouTube 或 Bilibili 連結");
+    if (!ref) throw new ApiError(400, "請輸入有效的 HTTP(S) 網址或影片 ID");
 
     // Blank title → use the source's own title; then peel any leading YYMMDD date.
     const { rawTitle, thumbnailUrl: autoThumb } = await resolveVideoMeta(
