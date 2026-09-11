@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { fetchLinkThumbnail } from "@/lib/link-preview";
 import { ApiError } from "@/lib/api";
 import { MembershipStatus } from "@/lib/constants";
 
@@ -127,8 +128,7 @@ export async function resolveVideoMeta(
 ): Promise<{ rawTitle: string; thumbnailUrl: string | null }> {
   const given = provided?.trim()?.slice(0, 140) || null;
   if (source === "link") {
-    // Do not fetch arbitrary user URLs on the server (SSRF).
-    return { rawTitle: given || new URL(id).hostname, thumbnailUrl: null };
+    return { rawTitle: given || new URL(id).hostname, thumbnailUrl: await fetchLinkThumbnail(id) };
   }
   if (source === "instagram") {
     // Instagram's metadata API needs a Meta token and covers are signed/expiring,

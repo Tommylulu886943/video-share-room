@@ -70,7 +70,7 @@ export const PATCH = route(
       }
     }
     // Manual cover URL wins; empty clears it (back to auto/placeholder).
-    if (input.thumbnailUrl !== undefined) {
+    if (input.thumbnailUrl !== undefined && (input.thumbnailUrl?.trim() || !sourceChanged)) {
       data.thumbnailUrl = input.thumbnailUrl?.trim() || null;
     }
     if (input.notes !== undefined) data.notes = input.notes || null;
