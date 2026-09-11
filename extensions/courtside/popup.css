@@ -11,3 +11,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid #78bba5; outline-
 button { width: 100%; background: #19634d; color: white; border: 0; padding: 12px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
 button:disabled { opacity: .5; cursor: wait; }
 #status { color: #b42318; margin-top: 12px; }
+select { width: 100%; box-sizing: border-box; border: 1px solid #ccd3dc; border-radius: 8px; padding: 10px; background: white; font: inherit; font-size: 13px; }
+select:focus-visible { outline: 3px solid #78bba5; outline-offset: 2px; }
+#reload { width: auto; background: transparent; color: #19634d; padding: 8px 0; font-size: 12px; }
+#result { display: inline-block; margin-top: 12px; color: #19634d; }
+#result[hidden] { display: none; }

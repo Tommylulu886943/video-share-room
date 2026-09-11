@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
   "name": "場邊 Courtside 快速匯入",
-  "version": "1.0.0",
-  "description": "將目前網頁匯入場邊，支援任意網站，並可選擇或記住預設社團。",
+  "version": "1.1.0",
+  "description": "在插件內選擇社團，直接將目前網頁匯入場邊。",
   "permissions": ["activeTab"],
+  "host_permissions": ["https://video-share-room.vercel.app/*"],
   "action": {
     "default_title": "匯入場邊",
     "default_popup": "popup.html"

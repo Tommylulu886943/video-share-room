@@ -1,5 +1,11 @@
 # 場邊 Chrome 插件
 
+## 1.1.0：插件內直接匯入
+
+更新後請在 `chrome://extensions` 重新載入插件，允許存取正式站。插件會載入已登入帳號可上傳的社團；選單每次預設空白，不使用之前的預設社團。選擇社團後點「匯入場邊」即可完成，成功訊息與查看連結直接顯示在插件內，不會自動開啟匯入頁。未登入時可點「登入場邊」，完成後重新開啟插件或點「重新載入社團」。
+
+此版本新增正式站 host permission，透過登入 session 直接呼叫 API，不讀取 Cookie 值。後端需先部署 `/api/extension/tenants`。以下為 1.0 舊版跳頁流程記錄。
+
 1. 正式站 `https://video-share-room.vercel.app/` 需部署包含 `/import` 的新版場邊網站。
 2. Chrome 開啟 `chrome://extensions`，啟用「開發人員模式」。
 3. 點「載入未封裝項目」，選擇本目錄 `extensions/courtside`（包含 manifest.json）。
