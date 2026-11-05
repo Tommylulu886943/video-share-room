@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import {
   videoEmbed,
   sourceGradient,
@@ -18,15 +18,30 @@ export function VideoEmbed({
   videoId,
   title,
   posterUrl,
+  playing: playingProp,
+  onPlay,
+  startSeconds,
+  iframeRef,
 }: {
   source: string;
   videoId: string;
   title: string;
   posterUrl: string | null;
+  /** Controlled mode (YouTube transcript sync): parent owns the facade state. */
+  playing?: boolean;
+  onPlay?: () => void;
+  startSeconds?: number;
+  /** When given (YouTube), the embed enables the IFrame Player API. */
+  iframeRef?: Ref<HTMLIFrameElement>;
 }) {
   // Instagram has no usable poster, and its own embed shows the cover + play —
   // so load it directly (one click on IG's player) instead of our facade.
-  const [playing, setPlaying] = useState(source === "instagram");
+  const [playingState, setPlayingState] = useState(source === "instagram");
+  const playing = playingProp ?? playingState;
+  const setPlaying = (v: boolean) => {
+    setPlayingState(v);
+    if (v) onPlay?.();
+  };
   const [broken, setBroken] = useState(false);
   const label = SOURCE_LABEL[source as VideoSource] ?? source;
 
@@ -43,7 +58,11 @@ export function VideoEmbed({
   if (playing) {
     return (
       <iframe
-        src={videoEmbed(source, videoId, true)}
+        ref={iframeRef}
+        src={videoEmbed(source, videoId, true, {
+          jsapiOrigin: iframeRef && typeof window !== "undefined" ? window.location.origin : undefined,
+          start: startSeconds,
+        })}
         title={title}
         className="absolute inset-0 h-full w-full"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share"

@@ -100,6 +100,8 @@ export function videoEmbed(
   source: string,
   id: string,
   autoplay = false,
+  /** YouTube only: enable the IFrame Player API (needs the page origin) and/or start offset. */
+  yt: { jsapiOrigin?: string; start?: number } = {},
 ): string {
   if (source === "link") return ""; // Arbitrary sites must never become iframes.
   if (source === "bilibili") {
@@ -112,7 +114,14 @@ export function videoEmbed(
     // Instagram's public embed iframe (no autoplay control available).
     return `https://www.instagram.com/reel/${id}/embed/`;
   }
-  return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1${autoplay ? "&autoplay=1" : ""}`;
+  const params = new URLSearchParams({ rel: "0", modestbranding: "1" });
+  if (autoplay) params.set("autoplay", "1");
+  if (yt.jsapiOrigin) {
+    params.set("enablejsapi", "1");
+    params.set("origin", yt.jsapiOrigin);
+  }
+  if (yt.start && yt.start > 0) params.set("start", String(Math.floor(yt.start)));
+  return `https://www.youtube.com/embed/${id}?${params}`;
 }
 
 export function videoWatchUrl(source: string, id: string): string {

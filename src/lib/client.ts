@@ -15,6 +15,8 @@ async function apiFetch<T = unknown>(
   return body.data as T;
 }
 
+export const apiGet = <T = unknown>(url: string) => apiFetch<T>(url);
+
 export const apiPost = <T = unknown>(url: string, data?: unknown) =>
   apiFetch<T>(url, { method: "POST", body: JSON.stringify(data ?? {}) });
 

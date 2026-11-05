@@ -249,3 +249,19 @@ model TagAccess {
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   @@id([tagId, membershipId])
 }
+
+/// Cached caption transcript for an external video (shared across tenants —
+/// captions are public data keyed by the source's own id). `lang` is "orig" for
+/// the source track or a translation target such as "zh-TW".
+model Transcript {
+  source     String // "youtube"
+  externalId String
+  lang       String
+  sourceLang String? // language code of the original track, e.g. "ja"
+  kind       String? // "asr" (auto-generated) | "manual"
+  status     String // "ok" | "none" (video has no captions)
+  segments   String   @default("[]") // JSON: [startMs, durMs, text][]
+  fetchedAt  DateTime @default(now())
+
+  @@id([source, externalId, lang])
+}
