@@ -1,15 +1,23 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { TokenPurpose } from "@/lib/constants";
 
 const EMAIL_VERIFY_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 
+/**
+ * Only a SHA-256 of the secret is stored (like invitations), so a database read
+ * never yields a usable verification link. The raw token lives in the email only.
+ */
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function createEmailVerifyToken(userId: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
   await prisma.token.create({
     data: {
-      token,
+      token: hashToken(token),
       userId,
       purpose: TokenPurpose.EMAIL_VERIFY,
       expiresAt: new Date(Date.now() + EMAIL_VERIFY_TTL_MS),
@@ -26,7 +34,7 @@ export function emailVerifyLink(token: string): string {
 export async function peekEmailVerifyToken(
   token: string,
 ): Promise<string | null> {
-  const row = await prisma.token.findUnique({ where: { token } });
+  const row = await prisma.token.findUnique({ where: { token: hashToken(token) } });
   if (
     !row ||
     row.purpose !== TokenPurpose.EMAIL_VERIFY ||
@@ -46,11 +54,12 @@ export async function peekEmailVerifyToken(
 export async function consumeEmailVerifyToken(
   token: string,
 ): Promise<string | null> {
-  const row = await prisma.token.findUnique({ where: { token } });
+  const hashed = hashToken(token);
+  const row = await prisma.token.findUnique({ where: { token: hashed } });
   if (!row || row.purpose !== TokenPurpose.EMAIL_VERIFY) return null;
 
   const res = await prisma.token.updateMany({
-    where: { token, consumedAt: null, expiresAt: { gt: new Date() } },
+    where: { token: hashed, consumedAt: null, expiresAt: { gt: new Date() } },
     data: { consumedAt: new Date() },
   });
   if (res.count === 0) return null;

@@ -124,6 +124,7 @@ export function TenantCreateForm() {
                 className="input"
                 value={brandLogo}
                 onChange={(e) => setBrandLogo(e.target.value)}
+                maxLength={8}
               />
             </div>
           </div>

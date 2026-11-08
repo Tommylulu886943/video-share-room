@@ -24,11 +24,12 @@ export function VideoCard({
   slug: string;
 }) {
   const sourceLabel = SOURCE_LABEL[video.source as VideoSource] ?? video.source;
+  const href = `/t/${slug}/video/${video.id}`;
+  // The card is a <div> with a "stretched" link on the title (its ::after
+  // covers the card), so the favorite <button> is no longer nested inside an
+  // <a> — invalid HTML that screen readers announce inconsistently.
   return (
-    <Link
-      href={`/t/${slug}/video/${video.id}`}
-      className="card group overflow-hidden transition hover:shadow-md"
-    >
+    <article className="card group relative overflow-hidden transition hover:shadow-md">
       <div className="relative aspect-video overflow-hidden bg-slate-100">
         {video.posterUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -64,13 +65,18 @@ export function VideoCard({
           ) : (
             <span />
           )}
-          <span className="flex shrink-0 items-center gap-2 text-slate-400">
+          <span className="relative z-10 flex shrink-0 items-center gap-2 text-slate-400">
             <span>👁 {video.viewCount.toLocaleString()}</span>
             <FavoriteStar slug={slug} videoId={video.id} initial={video.favorited} />
           </span>
         </div>
         <h3 className="line-clamp-2 font-semibold text-slate-900">
-          {video.title}
+          <Link
+            href={href}
+            className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-[var(--brand)]"
+          >
+            {video.title}
+          </Link>
         </h3>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
           {video.categoryLabel && (
@@ -88,6 +94,6 @@ export function VideoCard({
           )}
         </div>
       </div>
-    </Link>
+    </article>
   );
 }

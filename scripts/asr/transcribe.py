@@ -34,8 +34,12 @@ def fail(error, message):
     sys.exit(1)
 
 
+# Anchored phrases only: a bare "age" used to match "webpage"/"storage" and
+# classified ordinary network failures as "source restricted" (non-retryable).
 RESTRICTED = re.compile(
-    r"(sign in|login|private video|members[- ]only|age|not available in your country|confirm you.re not a bot|blocked)",
+    r"(sign in|log ?in|private video|members[- ]only|age[- ]restricted|confirm your age|"
+    r"inappropriate for some users|not available in your country|confirm you.re not a bot|"
+    r"video (?:is )?blocked|has been blocked)",
     re.I,
 )
 

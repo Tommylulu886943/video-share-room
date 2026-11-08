@@ -10,7 +10,7 @@ const updateSchema = z.object({
   title: z.string().trim().min(1, "請輸入公告標題").max(100, "標題最多 100 字"),
   content: z.string().trim().min(1, "請輸入公告內容").max(2000, "內容最多 2000 字"),
   color: z.enum(ANNOUNCEMENT_COLORS),
-  expiresAt: z.iso.datetime().nullable(),
+  expiresAt: z.iso.datetime({ offset: true, message: "有效期限格式錯誤" }).nullable(),
 });
 
 async function ownedAnnouncement(id: string, tenantId: string) {
@@ -25,10 +25,15 @@ export const PATCH = route(
   async (req: Request, { params }: { params: Promise<{ slug: string; id: string }> }) => {
     const { slug, id } = await params;
     const { session, ctx } = await requireTenantContext(slug, { admin: true });
-    await ownedAnnouncement(id, ctx.tenant.id);
+    const current = await ownedAnnouncement(id, ctx.tenant.id);
     const input = updateSchema.parse(await readJson(req));
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
-    if (expiresAt && expiresAt <= new Date()) throw new ApiError(422, "有效期限必須晚於現在");
+    // Only a *changed* expiry must be in the future; fixing a typo in an
+    // already-expired announcement should not force a new date too.
+    const expiryChanged = (expiresAt?.getTime() ?? null) !== (current.expiresAt?.getTime() ?? null);
+    if (expiryChanged && expiresAt && expiresAt <= new Date()) {
+      throw new ApiError(422, "有效期限必須晚於現在");
+    }
 
     const announcement = await prisma.announcement.update({ where: { id }, data: { ...input, expiresAt } });
     await recordAudit({

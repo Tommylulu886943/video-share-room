@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { resolveTenantContext } from "@/lib/tenant";
 import { landingPathFor } from "@/lib/nav";
 import { MembershipStatus } from "@/lib/constants";
+import { brandForeground } from "@/lib/brand";
 
 export default async function TenantLayout({
   children,
@@ -49,7 +50,12 @@ export default async function TenantLayout({
   return (
     <div
       className="flex min-h-dvh flex-col"
-      style={{ "--brand": ctx.tenant.brandColor } as CSSProperties}
+      style={
+        {
+          "--brand": ctx.tenant.brandColor,
+          "--brand-fg": brandForeground(ctx.tenant.brandColor),
+        } as CSSProperties
+      }
     >
       <TenantHeader
         current={current}

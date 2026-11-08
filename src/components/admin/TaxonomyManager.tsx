@@ -48,81 +48,70 @@ export function TaxonomyManager({
     });
   }
 
-  async function addTop() {
+  // One request at a time: a second Enter/click while the first is in flight
+  // used to create duplicate categories or surface a confusing 404 on delete.
+  const [busy, setBusy] = useState(false);
+  async function run(task: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await task();
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function addTop() {
     const name = newTop.trim();
     if (!name) return;
-    setError(null);
-    try {
+    void run(async () => {
       await apiPost("/api/t/" + slug + "/categories", { name });
       setNewTop("");
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    });
   }
 
-  async function addChild(topId: string) {
+  function addChild(topId: string) {
     const name = (childInputs[topId] ?? "").trim();
     if (!name) return;
-    setError(null);
-    try {
+    void run(async () => {
       await apiPost("/api/t/" + slug + "/categories", { name, parentId: topId });
       setChildInput(topId, "");
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    });
   }
 
-  async function renameCategory(id: string) {
+  function renameCategory(id: string) {
     const name = (editing[id] ?? "").trim();
     if (!name) return;
-    setError(null);
-    try {
+    void run(async () => {
       await apiPatch("/api/t/" + slug + "/categories/" + id, { name });
       cancelEdit(id);
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    });
   }
 
-  async function deleteCategory(id: string, isTop: boolean) {
+  function deleteCategory(id: string, isTop: boolean) {
     const message = isTop
       ? "確定要刪除此大分類嗎？其下的子分類也會一併刪除。"
       : "確定要刪除此子分類嗎？";
     if (!confirm(message)) return;
-    setError(null);
-    try {
-      await apiDelete("/api/t/" + slug + "/categories/" + id);
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    void run(() => apiDelete("/api/t/" + slug + "/categories/" + id).then(() => {}));
   }
 
-  async function addTag() {
+  function addTag() {
     const name = newTag.trim();
     if (!name) return;
-    setError(null);
-    try {
+    void run(async () => {
       await apiPost("/api/t/" + slug + "/tags", { name });
       setNewTag("");
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    });
   }
 
-  async function deleteTag(id: string) {
+  function deleteTag(id: string) {
     if (!confirm("確定要刪除此標籤嗎？")) return;
-    setError(null);
-    try {
-      await apiDelete("/api/t/" + slug + "/tags/" + id);
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+    void run(() => apiDelete("/api/t/" + slug + "/tags/" + id).then(() => {}));
   }
 
   return (
@@ -152,7 +141,7 @@ export function TaxonomyManager({
               }
             }}
           />
-          <button type="button" className="btn-brand" onClick={addTop}>
+          <button type="button" className="btn-brand" disabled={busy} onClick={addTop}>
             新增大分類
           </button>
         </div>
@@ -189,6 +178,7 @@ export function TaxonomyManager({
                         <button
                           type="button"
                           className="btn-brand"
+                          disabled={busy}
                           onClick={() => renameCategory(top.id)}
                         >
                           儲存
@@ -196,6 +186,7 @@ export function TaxonomyManager({
                         <button
                           type="button"
                           className="btn-ghost"
+                          disabled={busy}
                           onClick={() => cancelEdit(top.id)}
                         >
                           取消
@@ -206,6 +197,7 @@ export function TaxonomyManager({
                         <button
                           type="button"
                           className="btn-outline"
+                          disabled={busy}
                           onClick={() => startEdit(top.id, top.name)}
                         >
                           重新命名
@@ -213,6 +205,7 @@ export function TaxonomyManager({
                         <button
                           type="button"
                           className="btn-danger"
+                          disabled={busy}
                           onClick={() => deleteCategory(top.id, true)}
                         >
                           刪除
@@ -255,6 +248,7 @@ export function TaxonomyManager({
                               <button
                                 type="button"
                                 className="btn-brand"
+                                disabled={busy}
                                 onClick={() => renameCategory(child.id)}
                               >
                                 儲存
@@ -262,6 +256,7 @@ export function TaxonomyManager({
                               <button
                                 type="button"
                                 className="btn-ghost"
+                                disabled={busy}
                                 onClick={() => cancelEdit(child.id)}
                               >
                                 取消
@@ -272,6 +267,7 @@ export function TaxonomyManager({
                               <button
                                 type="button"
                                 className="btn-outline"
+                                disabled={busy}
                                 onClick={() => startEdit(child.id, child.name)}
                               >
                                 重新命名
@@ -279,6 +275,7 @@ export function TaxonomyManager({
                               <button
                                 type="button"
                                 className="btn-danger"
+                                disabled={busy}
                                 onClick={() => deleteCategory(child.id, false)}
                               >
                                 刪除
@@ -307,6 +304,7 @@ export function TaxonomyManager({
                     <button
                       type="button"
                       className="btn-outline"
+                      disabled={busy}
                       onClick={() => addChild(top.id)}
                     >
                       新增子分類
@@ -335,7 +333,7 @@ export function TaxonomyManager({
               }
             }}
           />
-          <button type="button" className="btn-brand" onClick={addTag}>
+          <button type="button" className="btn-brand" disabled={busy} onClick={addTag}>
             新增標籤
           </button>
         </div>

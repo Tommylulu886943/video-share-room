@@ -17,6 +17,14 @@ export default async function PendingPage() {
   if (approved.length > 0 || session.platformRole === "SUPER_ADMIN") {
     redirect(landingPathFor(session));
   }
+  // Nothing is actually pending (e.g. every application was rejected): the
+  // "等待審核中" copy would be wrong, so hand over to the join page instead.
+  const hasPending = session.memberships.some(
+    (m) =>
+      m.status === MembershipStatus.PENDING ||
+      m.status === MembershipStatus.PENDING_VERIFICATION,
+  );
+  if (!hasPending) redirect("/join");
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center px-4 py-10">

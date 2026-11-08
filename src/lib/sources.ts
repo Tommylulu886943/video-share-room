@@ -30,10 +30,15 @@ function parseYouTube(s: string): string | null {
       const id = url.pathname.slice(1).split("/")[0];
       return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
     }
-    if (host === "youtube.com" || host === "m.youtube.com") {
+    if (
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "music.youtube.com" ||
+      host === "youtube-nocookie.com"
+    ) {
       const v = url.searchParams.get("v");
       if (v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
-      const m = url.pathname.match(/\/(embed|shorts|v)\/([a-zA-Z0-9_-]{11})/);
+      const m = url.pathname.match(/\/(embed|shorts|live|v)\/([a-zA-Z0-9_-]{11})(?![a-zA-Z0-9_-])/);
       if (m) return m[2];
     }
   } catch {

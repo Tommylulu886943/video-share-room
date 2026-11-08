@@ -25,7 +25,7 @@ export function TenantHeader({
 }) {
   return (
     <header
-      className="sticky top-0 z-40 text-white shadow-sm"
+      className="sticky top-0 z-40 text-[var(--brand-fg)] shadow-sm"
       style={{ background: "var(--brand)" }}
     >
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-2 px-3 sm:px-5">

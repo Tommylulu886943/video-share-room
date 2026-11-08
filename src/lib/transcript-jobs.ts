@@ -35,12 +35,14 @@ import {
   type TranscriptSource,
   type TranslatedSegment,
 } from "@/lib/transcript";
+import { youtubeAuth, youtubeFetch } from "@/lib/youtube-fetch";
 import { asrConfigured, runAsr } from "@/lib/transcript-asr";
 import { llmConfigured, translateBatch, translateModel, translationBatchLimits } from "@/lib/transcript-translate";
 
 /** Replaceable I/O (tests swap these for fakes). */
 export const transcriptDeps = {
-  fetchCaptions: fetchYouTubeCaptions,
+  fetchCaptions: (id: string, lang: string | null) =>
+    fetchYouTubeCaptions(id, lang, { fetchImpl: youtubeFetch(), auth: youtubeAuth() }),
   runAsr,
   asrConfigured,
   translateBatch,
@@ -58,6 +60,13 @@ export const JOB_TIMING = {
   maxAttempts: 3,
   translateConcurrency: 3,
 };
+
+/**
+ * Publishing does 5–6 round-trips inside one interactive transaction; over
+ * Turso's HTTP driver that can exceed Prisma's 5 s default and fail (P2028) a
+ * result that was already in hand — forcing a needless re-fetch/re-translate.
+ */
+const TX_OPTIONS = { timeout: 20_000, maxWait: 5_000 };
 
 /** Runs a task after the response (route handlers pass Next's `after`). */
 export type Schedule = (task: () => Promise<void>) => void;
@@ -318,6 +327,12 @@ export interface TranscriptRequest {
   /** Translate after the original succeeds (or right away if it already exists). */
   translateTo?: string | null;
   userId?: string | null;
+  /**
+   * May this caller replace an existing transcript by asking for another
+   * caption language? False for ordinary members: they get the stored version
+   * (and its translation) regardless of `language`. Defaults to true.
+   */
+  canRefetch?: boolean;
 }
 
 /** "Get transcript" (optionally "…and translate"): reuse a valid result or queue a job. */
@@ -332,7 +347,10 @@ export async function requestTranscript(video: VideoRef, req: TranscriptRequest,
 
   if (!req.force) {
     const current = await currentTranscript(video);
-    if (current && (!language || sameLanguage(current.language, language))) {
+    // A different `language` from someone without refresh rights must not
+    // publish a new version (which would hide the current translation and bill
+    // a new one) — the `force` guard alone didn't cover this path.
+    if (current && (!language || sameLanguage(current.language, language) || req.canRefetch === false)) {
       if (translateTo) await enqueueTranslation(video, current, translateTo, false, req.userId ?? null, schedule);
       return;
     }
@@ -434,14 +452,32 @@ class Lease {
     readonly jobId: string,
     readonly token: string,
   ) {
-    this.timer = setInterval(() => void this.renew(), JOB_TIMING.heartbeatMs);
+    this.timer = setInterval(() => {
+      this.renew().catch(() => {});
+    }, JOB_TIMING.heartbeatMs);
   }
-  async renew(extra: Prisma.TranscriptJobUpdateManyMutationInput = {}): Promise<void> {
-    const r = await prisma.transcriptJob.updateMany({
-      where: { id: this.jobId, leaseToken: this.token, status: "processing" },
-      data: { ...extra, leaseUntil: new Date(Date.now() + JOB_TIMING.leaseMs) },
+  private chain: Promise<void> = Promise.resolve();
+  /**
+   * Renew the lease (and optionally save progress). Calls are serialised so a
+   * slower earlier write can't land after a newer one and roll progress back;
+   * `extra` is read when the write actually runs, so callers pass a thunk for
+   * values that keep changing.
+   */
+  renew(extra: Prisma.TranscriptJobUpdateManyMutationInput | (() => Prisma.TranscriptJobUpdateManyMutationInput) = {}): Promise<void> {
+    const run = this.chain.then(async () => {
+      const data = typeof extra === "function" ? extra() : extra;
+      const r = await prisma.transcriptJob.updateMany({
+        where: { id: this.jobId, leaseToken: this.token, status: "processing" },
+        data: { ...data, leaseUntil: new Date(Date.now() + JOB_TIMING.leaseMs) },
+      });
+      if (!r.count) this.lost = true;
     });
-    if (!r.count) this.lost = true;
+    // The interval heartbeat has no caller to catch a transport error; an
+    // unhandled rejection there would take the whole process down mid-job.
+    this.chain = run.catch((err) => {
+      console.warn("[transcript] lease renew failed:", err);
+    });
+    return run;
   }
   assert(): void {
     if (this.lost) throw new LeaseLostError();
@@ -612,7 +648,7 @@ async function processTranscript(job: TranscriptJob, lease: Lease): Promise<void
       },
     });
     return { row, thenTranslate: live.thenTranslate };
-  });
+  }, TX_OPTIONS);
   lease.stop();
 
   // "Get transcript and translate": chain only after the original is published.
@@ -632,7 +668,9 @@ async function processTranslation(job: TranscriptJob, lease: Lease): Promise<voi
   if (!transcript) throw new TranscriptError("transcript_gone", "原文已不存在");
   await loadYouTubeVideo(transcript.videoId, transcript.youtubeVideoId);
   if (!transcriptDeps.llmConfigured()) {
-    throw new TranscriptError("llm_not_configured", "翻譯服務未設定（伺服器缺少 NVIDIA_API_KEY 或 ANTHROPIC_API_KEY）");
+    throw new TranscriptError("llm_not_configured", "翻譯服務未設定，請聯繫管理者", false, {
+      hint: "伺服器缺少 NVIDIA_API_KEY 或 ANTHROPIC_API_KEY",
+    });
   }
   const segments = parseJson<TranscriptSegment[]>(transcript.segments, []);
   const valid = new Set(segments.map((s) => s.id));
@@ -640,12 +678,14 @@ async function processTranslation(job: TranscriptJob, lease: Lease): Promise<voi
   for (const [id, text] of Object.entries(parseJson<Record<string, string>>(job.progress, {}))) {
     if (valid.has(id) && typeof text === "string" && text) done[id] = text;
   }
+  // Snapshot `done` at write time (renew serialises writes), so progress is
+  // monotonic even with three workers finishing batches concurrently.
   const save = () =>
-    lease.renew({
+    lease.renew(() => ({
       progress: JSON.stringify(done),
       progressDone: Object.keys(done).length,
       progressTotal: segments.length,
-    });
+    }));
   await save();
   lease.assert();
 
@@ -727,7 +767,7 @@ async function processTranslation(job: TranscriptJob, lease: Lease): Promise<voi
         finishedAt: new Date(),
       },
     });
-  });
+  }, TX_OPTIONS);
 }
 
 /**
@@ -765,7 +805,9 @@ async function translateWithSplit(
     if (v.ok) return sink(v.map);
     reason = v.reason;
   }
-  if (batch.length > 1 && depth < 6) {
+  // Bisect all the way down to single segments: with 120-item batches a fixed
+  // depth cap stopped at pairs, so one bad segment failed its neighbour too.
+  if (batch.length > 1) {
     const mid = batch.length >> 1;
     const ctx = [...contextBefore, ...batch.slice(0, mid).map((b) => b.text)].slice(-3);
     let firstError: unknown = null;

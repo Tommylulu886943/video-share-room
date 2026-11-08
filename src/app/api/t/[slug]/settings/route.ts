@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { releaseUnverifiedApplicants } from "@/lib/members";
 import { settingsSchema } from "@/lib/validation";
 import { ApiError, jsonOk, readJson, requireTenantContext, route } from "@/lib/api";
 import { auditActor, recordAudit } from "@/lib/audit";
@@ -35,6 +36,11 @@ export const PATCH = route(
         defaultCategoryId,
       },
     });
+    // Verification switched off → applicants stuck waiting for a mail they'll
+    // never need must not stay hidden from the review queue.
+    if (ctx.tenant.requireEmailVerification && input.requireEmailVerification === false) {
+      await releaseUnverifiedApplicants(ctx.tenant.id);
+    }
     await recordAudit({
       tenantId: ctx.tenant.id,
       ...auditActor(session, ctx),

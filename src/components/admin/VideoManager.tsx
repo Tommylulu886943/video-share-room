@@ -70,6 +70,7 @@ export function VideoManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // List controls: keyword search, category filter, and sort. All client-side
@@ -329,15 +330,20 @@ export function VideoManager({
 
   async function handleDelete(id: string) {
     if (!confirm("確定要刪除此影片嗎？此動作無法復原。")) return;
+    setListError(null);
     try {
       await apiDelete("/api/t/" + slug + "/videos/" + id);
       if (editingId === id) {
         resetForm();
         setOpen(false);
       }
+      // A deleted video must leave the bulk selection, or the next 批次修改
+      // fails with "選取的影片不存在".
+      setSelectedIds((ids) => ids.filter((x) => x !== id));
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "發生未知錯誤");
+      // `error` only renders inside the edit modal; list actions need their own.
+      setListError(err instanceof Error ? err.message : "發生未知錯誤");
     }
   }
 
@@ -355,6 +361,12 @@ export function VideoManager({
           ＋ 新增影片
         </button>
       </div>
+
+      {listError && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          {listError}
+        </p>
+      )}
 
       {videos.length > 0 && (
         <div className="space-y-3">
@@ -564,7 +576,7 @@ export function VideoManager({
                         onClick={() => toggleBulkTag(tag.id)}
                         className={
                           active
-                            ? "chip bg-[var(--brand)] text-white"
+                            ? "chip bg-[var(--brand)] text-[var(--brand-fg)]"
                             : "chip bg-slate-100 text-slate-600"
                         }
                       >
@@ -597,15 +609,23 @@ export function VideoManager({
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
-          onClick={closeModal}
+          // Close only when the press *started* on the backdrop: a `click` is
+          // dispatched to the common ancestor of mousedown/mouseup, so dragging
+          // to select text in the form and releasing outside used to close it
+          // and throw the edits away.
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
         >
           <form
             onSubmit={handleSubmit}
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vm-dialog-title"
             className="card my-8 w-full max-w-2xl space-y-4 p-5"
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
+              <h2 id="vm-dialog-title" className="text-lg font-semibold">
                 {editingId ? "編輯影片" : "新增影片"}
               </h2>
               <button
@@ -729,7 +749,7 @@ export function VideoManager({
                       onClick={() => toggleTag(tag.id)}
                       className={
                         active
-                          ? "chip bg-[var(--brand)] text-white"
+                          ? "chip bg-[var(--brand)] text-[var(--brand-fg)]"
                           : "chip bg-slate-100 text-slate-600"
                       }
                     >

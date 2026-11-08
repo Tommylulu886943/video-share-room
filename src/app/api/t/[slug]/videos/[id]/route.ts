@@ -65,7 +65,10 @@ export const PATCH = route(
       const { recordedOn: prefixDate, title } = extractDatePrefix(rawTitle);
       data.title = title;
       if (sourceChanged) data.thumbnailUrl = thumbnailUrl;
-      if (input.recordedOn === undefined && prefixDate) {
+      // A YYMMDD prefix on the new title fills the date when the client sent no
+      // date (undefined) or a blank one (""/null — the editor always sends the
+      // field). Mirrors the create route; an explicit date below still wins.
+      if (!input.recordedOn && prefixDate) {
         data.recordedOn = prefixDate;
       }
     }
@@ -74,7 +77,7 @@ export const PATCH = route(
       data.thumbnailUrl = input.thumbnailUrl?.trim() || null;
     }
     if (input.notes !== undefined) data.notes = input.notes || null;
-    if (input.recordedOn !== undefined) {
+    if (input.recordedOn !== undefined && !(data.recordedOn && !input.recordedOn)) {
       data.recordedOn = parseRecordedOn(input.recordedOn || undefined);
     }
     if (input.visibility !== undefined) data.visibility = input.visibility;

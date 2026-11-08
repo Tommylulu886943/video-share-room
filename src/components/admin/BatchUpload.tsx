@@ -170,7 +170,7 @@ export function BatchUpload({
                       onClick={() => setTagIds((l) => toggle(l, tag.id))}
                       className={
                         active
-                          ? "chip bg-[var(--brand)] text-white"
+                          ? "chip bg-[var(--brand)] text-[var(--brand-fg)]"
                           : "chip bg-slate-100 text-slate-600"
                       }
                     >

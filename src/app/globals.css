@@ -11,6 +11,8 @@
 :root {
   /* Default brand accent; overridden per-tenant on the tenant shell. */
   --brand: #2563eb;
+  /* Readable text on top of --brand (white, or slate-900 for light brands). */
+  --brand-fg: #ffffff;
 }
 
 * {
@@ -40,7 +42,8 @@ body {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-brand {
-    @apply text-white shadow-sm;
+    @apply shadow-sm;
+    color: var(--brand-fg);
     background: var(--brand);
   }
   .btn-outline {

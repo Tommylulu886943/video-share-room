@@ -8,9 +8,10 @@ import { loadYouTubeIframeApi, type YTPlayer } from "@/lib/youtube-iframe";
 import { youtubeTimeUrl } from "@/lib/transcript";
 
 /**
- * YouTube player + synced transcript + timestamped member notes. Desktop: the
- * transcript is a sticky column beside the video, notes sit under the video
- * details (`children`); mobile: video, details, transcript, notes.
+ * YouTube player + synced transcript + timestamped member notes.
+ * - xl+: three columns — notes | video + details | transcript (both sides sticky)
+ * - lg: video + details with notes below | sticky transcript
+ * - mobile: video, details, transcript, notes
  */
 export function YouTubeWatch({
   slug,
@@ -103,8 +104,8 @@ export function YouTubeWatch({
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-6">
-      <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-6 xl:grid-cols-[280px_minmax(0,1fr)_340px] 2xl:grid-cols-[320px_minmax(0,1fr)_380px]">
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1 xl:col-start-2">
         <div className="overflow-hidden rounded-xl bg-black shadow-sm">
           <div className="relative aspect-video">
             <VideoEmbed
@@ -131,7 +132,7 @@ export function YouTubeWatch({
         onAddNote={addNote}
         onShowNote={showNote}
         onLinesChange={setLines}
-        className="mt-6 h-[60vh] lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:h-[min(640px,calc(100vh-7rem))]"
+        className="mt-6 h-[60vh] lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:h-[min(640px,calc(100vh-7rem))] xl:col-start-3 xl:row-span-1 xl:h-[min(720px,calc(100vh-7rem))]"
       />
       <NotesPanel
         ref={notesRef}
@@ -139,7 +140,7 @@ export function YouTubeWatch({
         timeMs={timeMs}
         lines={lines}
         onSeek={seek}
-        className="mt-6 min-w-0 lg:col-start-1 lg:row-start-2"
+        className="mt-6 min-w-0 lg:col-start-1 lg:row-start-2 xl:sticky xl:top-20 xl:row-start-1 xl:mt-0 xl:h-[min(720px,calc(100vh-7rem))]"
       />
     </div>
   );

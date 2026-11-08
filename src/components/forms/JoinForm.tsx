@@ -20,7 +20,13 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
     level: "",
   });
   const [attributes, setAttributes] = useState<Record<string, string>>({});
-  const fields = parseMemberFields(tenants.find(t => t.slug === form.tenantSlug)?.memberFields ?? "[]");
+  // After a successful join the refreshed `tenants` no longer contains the
+  // club we just applied to; a stale slug would make the <select> show one
+  // club while submitting another (→ 409 "你已是此社團成員").
+  const tenantSlug = tenants.some((t) => t.slug === form.tenantSlug)
+    ? form.tenantSlug
+    : (tenants[0]?.slug ?? "");
+  const fields = parseMemberFields(tenants.find(t => t.slug === tenantSlug)?.memberFields ?? "[]");
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,7 +43,7 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
     try {
       const { status } = await apiPost<{ status: string }>(
         "/api/auth/join",
-        { ...form, attributes },
+        { ...form, tenantSlug, attributes },
       );
       setMsg(
         status === "APPROVED"
@@ -57,9 +63,16 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
 
   if (tenants.length === 0) {
     return (
-      <p className="text-sm text-slate-500">
-        目前沒有其他可申請的社團。
-      </p>
+      <div className="space-y-3">
+        {msg && (
+          <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+            {msg}
+          </p>
+        )}
+        <p className="text-sm text-slate-500">
+          目前沒有其他可申請的社團。
+        </p>
+      </div>
     );
   }
 
@@ -82,7 +95,7 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
         <select
           id="join-tenant"
           className="input"
-          value={form.tenantSlug}
+          value={tenantSlug}
           onChange={(e) => { set("tenantSlug", e.target.value); setAttributes({}); }}
         >
           {tenants.map((t) => (
@@ -92,20 +105,18 @@ export function JoinForm({ tenants }: { tenants: TenantOption[] }) {
           ))}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label" htmlFor="join-name">
-            名稱
-          </label>
-          <input
-            id="join-name"
-            className="input"
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            required
-          />
-        </div>
-
+      <div>
+        <label className="label" htmlFor="join-name">
+          名稱
+        </label>
+        <input
+          id="join-name"
+          className="input"
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          maxLength={60}
+          required
+        />
       </div>
       <MemberFields fields={fields} values={attributes} onChange={setAttributes} />
       <button type="submit" className="btn-brand w-full" disabled={loading}>

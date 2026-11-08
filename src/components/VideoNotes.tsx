@@ -104,13 +104,14 @@ function lineAt(lines: NoteLine[], ms: number): NoteLine | null {
 
 function KindPicker({ value, onChange }: { value: NoteKind; onChange: (k: NoteKind) => void }) {
   return (
-    <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs" role="radiogroup" aria-label="筆記類型">
+    // Toggle buttons (aria-pressed) rather than role="radio": real radios need
+    // arrow-key navigation and roving tabindex, which these buttons don't have.
+    <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs" role="group" aria-label="筆記類型">
       {NOTE_KINDS.map((k) => (
         <button
           key={k}
           type="button"
-          role="radio"
-          aria-checked={value === k}
+          aria-pressed={value === k}
           onClick={() => onChange(k)}
           className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition ${
             value === k ? "bg-white font-semibold text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
@@ -174,7 +175,7 @@ const NoteItem = memo(function NoteItem({
     }
   };
   const remove = async () => {
-    const whose = note.mine ? "這則筆記" : `${note.author?.username ?? "這位使用者"} 的筆記`;
+    const whose = note.mine ? "這則筆記" : `${note.author?.name ?? "這位使用者"} 的筆記`;
     if (!window.confirm(`確定刪除${whose}？`)) return;
     setError(null);
     try {
@@ -201,25 +202,9 @@ const NoteItem = memo(function NoteItem({
           {formatTimestamp(note.startMs)}
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-            <span className={`chip px-2 py-0.5 ${NOTE_KIND_STYLE[note.kind].chip}`}>{NOTE_KIND_LABEL[note.kind]}</span>
-            <span className="font-medium text-slate-700">{note.author?.username ?? "已刪除的使用者"}</span>
-            <time dateTime={note.createdAt}>{shortDate(note.createdAt)}</time>
-            {note.edited && <span>· 已編輯</span>}
-            {!editing && (note.mine || note.canDelete) && (
-              <span className="ml-auto flex gap-3">
-                {note.mine && (
-                  <button type="button" onClick={startEdit} className="hover:text-slate-800">
-                    編輯
-                  </button>
-                )}
-                {note.canDelete && (
-                  <button type="button" onClick={remove} className="hover:text-rose-600">
-                    刪除
-                  </button>
-                )}
-              </span>
-            )}
+          <div className="flex min-w-0 items-center gap-2 text-xs">
+            <span className={`chip shrink-0 px-2 py-0.5 ${NOTE_KIND_STYLE[note.kind].chip}`}>{NOTE_KIND_LABEL[note.kind]}</span>
+            <span className="truncate font-medium text-slate-700">{note.author?.name ?? "已刪除的使用者"}</span>
           </div>
           {quote && <p className="mt-1 truncate text-xs text-slate-400">「{quote}」</p>}
           {editing ? (
@@ -245,7 +230,27 @@ const NoteItem = memo(function NoteItem({
               </div>
             </div>
           ) : (
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800">{note.body}</p>
+            <>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800">{note.body}</p>
+              <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
+                <time dateTime={note.createdAt}>{shortDate(note.createdAt)}</time>
+                {note.edited && <span>· 已編輯</span>}
+                {(note.mine || note.canDelete) && (
+                  <span className="ml-auto flex gap-3 text-xs text-slate-500">
+                    {note.mine && (
+                      <button type="button" onClick={startEdit} className="py-0.5 hover:text-slate-800">
+                        編輯
+                      </button>
+                    )}
+                    {note.canDelete && (
+                      <button type="button" onClick={remove} className="py-0.5 hover:text-rose-600">
+                        刪除
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
+            </>
           )}
           {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
         </div>
@@ -350,8 +355,8 @@ export function NotesPanel({
   const activeLine = timeMs === null || !lines.length ? -1 : activeSegmentIndex(lines, timeMs);
 
   return (
-    <section className={`card ${className}`} aria-labelledby="video-notes-title">
-      <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-2.5">
+    <section className={`card flex min-h-0 flex-col overflow-hidden ${className}`} aria-labelledby="video-notes-title">
+      <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-2.5">
         <h2 id="video-notes-title" className="font-semibold text-slate-900">
           筆記
         </h2>
@@ -379,7 +384,7 @@ export function NotesPanel({
         )}
       </header>
 
-      <div ref={composerRef} className="scroll-mt-24 space-y-2 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+      <div ref={composerRef} className="shrink-0 scroll-mt-24 space-y-2 border-b border-slate-100 bg-slate-50/60 px-4 py-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
           <span>記在</span>
           <button
@@ -402,6 +407,7 @@ export function NotesPanel({
           )}
           {anchorLine && <span className="min-w-0 flex-1 basis-full truncate text-slate-400 sm:basis-0">「{anchorLine.text}」</span>}
         </div>
+        <KindPicker value={kind} onChange={setKind} />
         <textarea
           ref={textareaRef}
           value={text}
@@ -411,73 +417,76 @@ export function NotesPanel({
           onKeyDown={(e) => submitKeys(e, submit)}
           maxLength={NOTE_MAX_CHARS}
           rows={2}
-          placeholder="寫下這一段的心得、要點或關注點…（Ctrl/⌘ + Enter 送出）"
+          placeholder="寫下這一段的心得、要點或關注點…"
           className="input resize-y py-2"
           aria-label="筆記內容"
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <KindPicker value={kind} onChange={setKind} />
-          <span className="ml-auto flex items-center gap-2">
-            {(text || anchorMs !== null) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setText("");
-                  setAnchorMs(null);
-                  setFormError(null);
-                }}
-                className="btn-ghost px-3 py-1.5 text-xs"
-              >
-                清除
-              </button>
-            )}
-            <button type="button" onClick={submit} disabled={saving || !text.trim()} className="btn-brand px-3 py-1.5 text-xs">
-              {saving ? "儲存中…" : "新增筆記"}
+        <div className="flex items-center justify-end gap-2">
+          <span className="mr-auto hidden text-[11px] text-slate-400 [@media(hover:hover)]:inline">Ctrl/⌘ + Enter 送出</span>
+          {(text || anchorMs !== null) && (
+            <button
+              type="button"
+              onClick={() => {
+                setText("");
+                setAnchorMs(null);
+                setFormError(null);
+              }}
+              className="btn-ghost px-3 py-1.5 text-xs"
+            >
+              清除
             </button>
-          </span>
+          )}
+          <button type="button" onClick={submit} disabled={saving || !text.trim()} className="btn-brand px-3 py-1.5 text-xs">
+            {saving ? "儲存中…" : "新增筆記"}
+          </button>
         </div>
         {formError && <p className="text-xs text-rose-600">{formError}</p>}
       </div>
 
-      {notes === null && !loadError && (
-        <div className="space-y-3 p-4" aria-busy="true">
-          {[80, 60].map((w) => (
-            <div key={w} className="h-4 animate-pulse rounded bg-slate-100" style={{ width: `${w}%` }} />
-          ))}
-        </div>
-      )}
-      {loadError && notes === null && (
-        <p className="p-4 text-sm text-slate-500">
-          {loadError}{" "}
-          <button type="button" onClick={() => void reload()} className="text-[var(--brand)] hover:underline">
-            重試
-          </button>
-        </p>
-      )}
-      {notes?.length === 0 && (
-        <p className="px-4 py-6 text-center text-sm text-slate-400">
-          還沒有筆記。在逐字稿任一行點「＋」，或直接在上方寫下目前畫面的心得。
-        </p>
-      )}
-      {!!shown.length && (
-        <ol className="divide-y divide-slate-100 px-2 py-1">
-          {shown.map((n) => {
-            const idx = lines.length ? activeSegmentIndex(lines, n.startMs) : -1;
-            return (
-              <NoteItem
-                key={n.id}
-                note={n}
-                quote={idx >= 0 ? lines[idx].text : null}
-                active={idx >= 0 && idx === activeLine}
-                flash={flashId === n.id}
-                onSeek={onSeek}
-                onUpdate={update}
-                onRemove={remove}
-              />
-            );
-          })}
-        </ol>
-      )}
+      {/* Scrolls inside the panel when it has a fixed height (desktop side column). */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {notes === null && !loadError && (
+          <div className="space-y-3 p-4" aria-busy="true">
+            {[80, 60].map((w) => (
+              <div key={w} className="h-4 animate-pulse rounded bg-slate-100" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+        )}
+        {loadError && notes === null && (
+          <p className="p-4 text-sm text-slate-500">
+            {loadError}{" "}
+            <button type="button" onClick={() => void reload()} className="text-[var(--brand)] hover:underline">
+              重試
+            </button>
+          </p>
+        )}
+        {notes?.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-slate-400">
+            {lines.length
+            ? "還沒有筆記。在逐字稿任一行點「＋」，或直接在上方寫下目前畫面的心得。"
+            : "還沒有筆記。在上方寫下目前畫面的心得、要點或關注點。"}
+          </p>
+        )}
+        {!!shown.length && (
+          <ol className="divide-y divide-slate-100 px-2 py-1">
+            {shown.map((n) => {
+              const idx = lines.length ? activeSegmentIndex(lines, n.startMs) : -1;
+              return (
+                <NoteItem
+                  key={n.id}
+                  note={n}
+                  quote={idx >= 0 ? lines[idx].text : null}
+                  active={idx >= 0 && idx === activeLine}
+                  flash={flashId === n.id}
+                  onSeek={onSeek}
+                  onUpdate={update}
+                  onRemove={remove}
+                />
+              );
+            })}
+          </ol>
+        )}
+      </div>
     </section>
   );
 }

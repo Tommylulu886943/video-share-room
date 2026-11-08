@@ -1,5 +1,6 @@
 import { pageTenantContext } from "@/lib/page";
 import { prisma } from "@/lib/db";
+import { formatTaipeiDateTime } from "@/lib/time";
 
 const ACTION_LABEL: Record<string, string> = {
   "video.create": "上傳",
@@ -50,7 +51,7 @@ export default async function AuditPage({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b text-slate-500">
-                <th className="py-2 pr-4 font-medium">時間</th>
+                <th className="py-2 pr-4 font-medium">時間（台灣）</th>
                 <th className="py-2 pr-4 font-medium">操作者</th>
                 <th className="py-2 pr-4 font-medium">類別</th>
                 <th className="py-2 pr-4 font-medium">內容</th>
@@ -60,7 +61,7 @@ export default async function AuditPage({
               {logs.map((l) => (
                 <tr key={l.id} className="border-b last:border-b-0 align-top">
                   <td className="whitespace-nowrap py-2 pr-4 text-slate-500">
-                    {l.createdAt.toISOString().slice(0, 16).replace("T", " ")}
+                    {formatTaipeiDateTime(l.createdAt)}
                   </td>
                   <td className="py-2 pr-4 font-medium text-slate-700">
                     {l.actorName}

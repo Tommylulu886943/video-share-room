@@ -75,7 +75,7 @@ export default async function AdminDashboardPage({
         user: { lastSeenAt: { gte: todayStart } },
       },
       orderBy: { user: { lastSeenAt: "desc" } },
-      select: { name: true, level: true, user: { select: { lastSeenAt: true } } },
+      select: { id: true, name: true, level: true, user: { select: { lastSeenAt: true } } },
     }),
     prisma.video.findMany({
       where: { tenantId },
@@ -266,7 +266,7 @@ export default async function AdminDashboardPage({
           ) : (
             <div className="divide-y divide-slate-100">
               {onlineMembers.map((member) => (
-                <div key={`${member.name}-${member.level}`} className="flex items-center gap-3 py-3">
+                <div key={member.id} className="flex items-center gap-3 py-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-50 font-semibold text-emerald-700">
                     {member.name.slice(0, 1)}
                   </span>

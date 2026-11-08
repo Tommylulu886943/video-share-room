@@ -85,15 +85,41 @@ export async function notifyAdminOfApplication(membershipId: string): Promise<vo
  * memberships: to PENDING (and notify the admin) when the tenant requires
  * approval, otherwise straight to APPROVED.
  */
-export async function promoteVerifiedMemberships(userId: string): Promise<void> {
+export async function promoteVerifiedMemberships(userId: string): Promise<string[]> {
   const pending = await prisma.membership.findMany({
     where: { userId, status: MembershipStatus.PENDING_VERIFICATION },
     include: { tenant: true },
   });
+  const statuses: string[] = [];
   for (const m of pending) {
     const status = m.tenant.requireApproval
       ? MembershipStatus.PENDING
       : MembershipStatus.APPROVED;
+    await prisma.membership.update({ where: { id: m.id }, data: { status } });
+    statuses.push(status);
+    if (status === MembershipStatus.PENDING) {
+      await notifyAdminOfApplication(m.id);
+    }
+  }
+  return statuses;
+}
+
+/**
+ * When a club switches email verification off, applicants who were parked in
+ * PENDING_VERIFICATION would otherwise stay invisible forever (nothing else
+ * advances them). Move them on exactly as a successful verification would.
+ */
+export async function releaseUnverifiedApplicants(tenantId: string): Promise<void> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  if (!tenant) return;
+  const parked = await prisma.membership.findMany({
+    where: { tenantId, status: MembershipStatus.PENDING_VERIFICATION },
+    select: { id: true },
+  });
+  const status = tenant.requireApproval
+    ? MembershipStatus.PENDING
+    : MembershipStatus.APPROVED;
+  for (const m of parked) {
     await prisma.membership.update({ where: { id: m.id }, data: { status } });
     if (status === MembershipStatus.PENDING) {
       await notifyAdminOfApplication(m.id);

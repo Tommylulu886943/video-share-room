@@ -45,6 +45,7 @@ const Line = memo(function Line({
   showTranslation,
   active,
   notes,
+  lang,
   onSeek,
   onAddNote,
   onShowNote,
@@ -54,15 +55,19 @@ const Line = memo(function Line({
   showTranslation: boolean;
   active: boolean;
   notes: NoteRef[] | undefined;
+  /** BCP-47 tag of the original text. */
+  lang: string | undefined;
   onSeek: (ms: number) => void;
   onAddNote?: (ms: number) => void;
   onShowNote?: (noteId: string) => void;
 }) {
   const main = showTranslation && translated ? translated : seg.text;
+  const mainLang = showTranslation && translated ? "zh-Hant-TW" : lang;
   const kinds = notes ? [...new Set(notes.map((n) => n.kind))] : [];
   return (
     <li
       data-active={active || undefined}
+      aria-current={active ? "true" : undefined}
       className={`group flex items-start rounded-lg transition ${
         active ? "bg-[var(--brand)]/10 text-slate-900" : "text-slate-600 hover:bg-slate-100"
       }`}
@@ -80,9 +85,10 @@ const Line = memo(function Line({
           {formatTimestamp(seg.start_ms)}
         </span>
         <span className="min-w-0">
-          <span className={active ? "font-medium" : undefined}>{main}</span>
+          {/* lang: Han-unified glyphs render with the right regional font variants. */}
+          <span lang={mainLang} className={active ? "font-medium" : undefined}>{main}</span>
           {showTranslation && translated && translated !== seg.text && (
-            <span className="mt-0.5 block text-xs text-slate-400">{seg.text}</span>
+            <span lang={lang} className="mt-0.5 block text-xs text-slate-400">{seg.text}</span>
           )}
         </span>
       </button>
@@ -108,9 +114,11 @@ const Line = memo(function Line({
               onClick={() => onAddNote(seg.start_ms)}
               title="在這一段新增筆記"
               aria-label={`在 ${formatTimestamp(seg.start_ms)} 新增筆記`}
-              className="rounded-md px-1.5 py-0.5 text-sm leading-none text-slate-400 opacity-0 transition hover:bg-white hover:text-[var(--brand)] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+              className="rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-white hover:text-[var(--brand)] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
             >
-              ＋
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <path d="M8 3v10M3 8h10" />
+              </svg>
             </button>
           )}
         </span>
@@ -225,13 +233,18 @@ export function TranscriptPanel({
     void refresh();
   }, [refresh]);
 
-  // Poll while either job is running.
+  // Poll while either job is running. `tick` advances after every attempt —
+  // including a failed one — so one dropped request doesn't stop polling and
+  // leave the panel saying "翻譯中…" forever.
   const running = !!state && (isActive(state.transcriptStatus) || isActive(state.translationStatus));
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!running) return;
-    const t = setTimeout(() => void refresh(), POLL_MS);
+    const t = setTimeout(() => {
+      refresh().finally(() => setTick((n) => n + 1));
+    }, POLL_MS);
     return () => clearTimeout(t);
-  }, [running, state, refresh]);
+  }, [running, tick, refresh]);
 
   const post = async (url: string, body: unknown): Promise<TranscriptState | null> => {
     setPosting(true);
@@ -266,10 +279,11 @@ export function TranscriptPanel({
     });
     if (next?.transcriptJob) setWatchJobId(next.transcriptJob.id);
   };
-  const translate = (force = false) => {
+  const translate = async (force = false) => {
     if (!transcript) return;
     if (force && !window.confirm("已有儲存的翻譯。重新翻譯會再次使用 AI 額度，確定嗎？")) return;
-    void post(`${base}/translation`, { transcriptVersion: transcript.version, targetLanguage: TRANSLATE_TARGET, force });
+    const next = await post(`${base}/translation`, { transcriptVersion: transcript.version, targetLanguage: TRANSLATE_TARGET, force });
+    if (next?.translationJob) setWatchJobId(next.translationJob.id);
   };
 
   const translatedById = useMemo(
@@ -309,11 +323,18 @@ export function TranscriptPanel({
     if (!el) return;
     const top = el.offsetTop - list.offsetTop;
     if (top < list.scrollTop || top + el.offsetHeight > list.scrollTop + list.clientHeight) {
+      // Smooth scrolling fires scroll events for a while; ignore them as "user" scrolls.
+      programmaticScrollUntil.current = Date.now() + 800;
       list.scrollTo({ top: Math.max(0, top - list.clientHeight / 3), behavior: "smooth" });
     }
   }, [active, showTranslation]);
 
+  // Any scroll the panel didn't start itself (wheel, touch, scrollbar drag,
+  // keyboard) pauses auto-follow; programmatic scrolls are flagged so they
+  // don't count as the user's.
+  const programmaticScrollUntil = useRef(0);
   const markUserScroll = () => {
+    if (Date.now() < programmaticScrollUntil.current) return;
     userScrollAt.current = Date.now();
   };
 
@@ -376,13 +397,18 @@ export function TranscriptPanel({
     xText = "原文已是繁體中文，不需翻譯";
   } else if (!state.llmConfigured) {
     xTone = "warn";
-    xText = "翻譯服務未設定（伺服器缺少 NVIDIA_API_KEY 或 ANTHROPIC_API_KEY）";
+    xText = "翻譯服務未設定，請聯繫管理者";
   } else if (isActive(xStatus)) {
     xTone = "busy";
     xText = jobText(xJob, "翻譯中…");
-  } else if (xStatus === "failed") {
+  } else if (xStatus === "failed" && !translation) {
     xTone = "error";
     xText = xJob?.errorMessage ?? "翻譯失敗";
+  } else if (xStatus === "failed" && translation && xJob?.id === watchJobId) {
+    // A failed *re*-translation is feedback for whoever asked; everyone else
+    // just sees the stored translation (same rule as the transcript row).
+    xTone = "warn";
+    xText = `重新翻譯失敗：${xJob?.errorMessage ?? "未知錯誤"}（目前顯示既有翻譯）`;
   } else if (translation) {
     xTone = "ok";
     xText = `已完成（對應第 ${translation.transcriptVersion} 版原文）`;
@@ -394,7 +420,7 @@ export function TranscriptPanel({
     tStatus === "failed" && tJob?.errorCode === "language_ambiguous" && (!transcript || tJob.id === watchJobId);
 
   return (
-    <section className={`card flex min-h-0 flex-col overflow-hidden ${className}`}>
+    <section className={`card flex min-h-0 flex-col overflow-hidden ${className} ${transcript ? "" : "max-lg:h-auto"}`}>
       <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-3 py-2.5">
         <h2 className="font-semibold text-slate-900">逐字稿</h2>
         {transcript?.source === "youtube_auto" && <span className="chip bg-slate-100 text-slate-500">自動字幕</span>}
@@ -450,6 +476,7 @@ export function TranscriptPanel({
             <div className={`pt-0.5 ${ambiguous ? "rounded-md bg-amber-50 p-1.5" : ""}`}>{languagePicker}</div>
           )}
           {actionError && <p className="text-xs text-rose-600">{actionError}</p>}
+          {loadError && <p className="text-xs text-amber-700">無法更新狀態：{loadError}（會自動重試）</p>}
         </div>
       )}
 
@@ -503,8 +530,7 @@ export function TranscriptPanel({
       {transcript && (
         <ol
           ref={listRef}
-          onWheel={markUserScroll}
-          onTouchMove={markUserScroll}
+          onScroll={markUserScroll}
           className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
         >
           {segments.map((seg, i) => (
@@ -515,6 +541,7 @@ export function TranscriptPanel({
               showTranslation={showTranslation}
               active={i === active}
               notes={notesByLine.get(i)}
+              lang={transcript.language || undefined}
               onSeek={onSeek}
               onAddNote={onAddNote}
               onShowNote={onShowNote}

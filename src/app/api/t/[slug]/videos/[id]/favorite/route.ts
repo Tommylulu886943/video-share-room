@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { viewableVideoWhere } from "@/lib/access";
 import {
   ApiError,
+  isUniqueViolation,
   jsonOk,
   requireTenantContext,
   route,
@@ -20,22 +21,24 @@ export const POST = route(
 
     const video = await prisma.video.findFirst({
       where: { AND: [{ id }, viewableVideoWhere(ctx)] },
-      include: { access: { select: { membershipId: true } } },
+      select: { id: true },
     });
     if (!video) {
       throw new ApiError(404, "找不到影片");
     }
 
-    const existing = await prisma.favorite.findUnique({
-      where: { userId_videoId: { userId: session.id, videoId: id } },
+    // Toggle without a read-then-write race: a delete that removed a row means
+    // it was favorited; otherwise create (and treat "already there" from a
+    // concurrent double-click as the same end state).
+    const removed = await prisma.favorite.deleteMany({
+      where: { userId: session.id, videoId: id },
     });
-    if (existing) {
-      await prisma.favorite.delete({
-        where: { userId_videoId: { userId: session.id, videoId: id } },
-      });
-      return jsonOk({ favorited: false });
+    if (removed.count > 0) return jsonOk({ favorited: false });
+    try {
+      await prisma.favorite.create({ data: { userId: session.id, videoId: id } });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
     }
-    await prisma.favorite.create({ data: { userId: session.id, videoId: id } });
     return jsonOk({ favorited: true });
   },
 );

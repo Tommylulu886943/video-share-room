@@ -16,24 +16,28 @@ export function MemberUploadToggle({
   const router = useRouter();
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function toggle() {
     const next = !on;
     setBusy(true);
+    setError(null);
     setOn(next);
     try {
       await apiPatch("/api/t/" + slug + "/members/" + membershipId, {
         canUpload: next,
       });
       router.refresh();
-    } catch {
-      setOn(!next); // revert on failure
+    } catch (err) {
+      setOn(!next); // revert on failure — and say so, instead of silently snapping back
+      setError(err instanceof Error ? err.message : "儲存失敗");
     } finally {
       setBusy(false);
     }
   }
 
   return (
+    <span className="inline-flex flex-col items-start gap-0.5">
     <button
       type="button"
       role="switch"
@@ -51,5 +55,11 @@ export function MemberUploadToggle({
         }`}
       />
     </button>
+    {error && (
+      <span role="alert" className="text-xs text-red-600">
+        {error}
+      </span>
+    )}
+    </span>
   );
 }

@@ -39,14 +39,17 @@ export const POST = route(
             : MembershipStatus.REJECTED,
           reviewedAt: new Date(),
           reviewedById: session.id, // always the reviewing User's id
+          // Revoked access also revokes upload rights (see below).
+          ...(approved ? {} : { canUpload: false }),
         },
       });
-      // When access is revoked, drop any restricted-video grants so they can't
-      // be re-gained by a later re-approval (stale allow-list rows).
+      // When access is revoked, drop every grant (restricted videos, categories,
+      // tags) so they can't silently come back if the person re-applies and is
+      // approved later.
       if (!approved) {
-        await tx.videoAccess.deleteMany({
-          where: { membershipId: membership.id },
-        });
+        await tx.videoAccess.deleteMany({ where: { membershipId: membership.id } });
+        await tx.categoryAccess.deleteMany({ where: { membershipId: membership.id } });
+        await tx.tagAccess.deleteMany({ where: { membershipId: membership.id } });
       }
     });
 

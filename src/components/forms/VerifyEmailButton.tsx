@@ -6,13 +6,15 @@ import { apiPost } from "@/lib/client";
 
 export function VerifyEmailButton({ token }: { token: string }) {
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function verify() {
     setState("loading");
     setError(null);
     try {
-      await apiPost("/api/auth/verify-email", { token });
+      const r = await apiPost<{ verified: boolean; approved?: boolean }>("/api/auth/verify-email", { token });
+      setApproved(Boolean(r.approved));
       setState("done");
     } catch (err) {
       setError(err instanceof Error ? err.message : "驗證失敗");
@@ -24,7 +26,9 @@ export function VerifyEmailButton({ token }: { token: string }) {
     return (
       <div className="space-y-4">
         <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
-          你的 email 已成功驗證，申請已送交社團管理者審核。核可後你就能登入觀看影片。
+          {approved
+            ? "你的 email 已成功驗證，申請已自動通過。現在就可以登入觀看影片。"
+            : "你的 email 已成功驗證，申請已送交社團管理者審核。核可後你就能登入觀看影片。"}
         </div>
         <Link href="/login" className="btn-brand w-full">
           前往登入

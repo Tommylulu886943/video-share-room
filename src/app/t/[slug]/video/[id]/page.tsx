@@ -15,6 +15,7 @@ import {
   type VideoSource,
 } from "@/lib/sources";
 import { Visibility } from "@/lib/constants";
+import { formatTaipeiDate } from "@/lib/time";
 
 export default async function VideoPage({
   params,
@@ -51,13 +52,10 @@ export default async function VideoPage({
   const details = (
       <div className="mt-4">
         <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
-          {(video.recordedOn ?? video.createdAt)
-            .toISOString()
-            .slice(0, 10)
-            .replace(/-/g, "/")}
+          {formatTaipeiDate(video.recordedOn ?? video.createdAt)}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-bold text-slate-900">{video.title}</h1>
+          <h1 className="min-w-0 break-words text-xl font-bold text-slate-900">{video.title}</h1>
           <FavoriteStar
             slug={slug}
             videoId={video.id}
@@ -86,7 +84,7 @@ export default async function VideoPage({
         </div>
 
         {video.notes && (
-          <p className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="mt-3 whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
             {video.notes}
           </p>
         )}
@@ -114,7 +112,7 @@ export default async function VideoPage({
 
   return (
     <main
-      className={`mx-auto w-full px-3 py-5 sm:px-5 ${isYouTube ? "max-w-6xl" : "max-w-3xl"}`}
+      className={`mx-auto w-full px-3 py-5 sm:px-5 ${isYouTube ? "max-w-6xl xl:max-w-7xl 2xl:max-w-[1600px]" : "max-w-3xl"}`}
     >
       <ViewTracker slug={slug} videoId={video.id} />
       <Link

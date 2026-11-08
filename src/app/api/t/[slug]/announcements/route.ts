@@ -10,7 +10,7 @@ const announcementSchema = z.object({
   title: z.string().trim().min(1, "請輸入公告標題").max(100, "標題最多 100 字"),
   content: z.string().trim().min(1, "請輸入公告內容").max(2000, "內容最多 2000 字"),
   color: z.enum(ANNOUNCEMENT_COLORS),
-  expiresAt: z.iso.datetime().nullable(),
+  expiresAt: z.iso.datetime({ offset: true, message: "有效期限格式錯誤" }).nullable(),
 });
 
 export const POST = route(

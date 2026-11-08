@@ -543,3 +543,28 @@ test("access: other tenants and non-allowed members cannot reach a video or its 
   assert.equal(copyState.transcript, null);
   assert.equal(copyState.translation, null);
 });
+
+test("a member without refresh rights cannot replace the original by asking for another language", async () => {
+  resetFakes();
+  const video = await newVideo();
+  await jobs.requestTranscript(video, { translateTo: "zh-TW" }, schedule);
+  await drain();
+  assert.equal((await jobs.getTranscriptState(video)).translation?.transcriptVersion, 1);
+
+  // Ordinary member: a different `language` must neither fetch nor publish.
+  fetchImpl = async () => captions(["another", "track"], "en");
+  const before = fetchCalls.length;
+  await jobs.requestTranscript(video, { language: "en", translateTo: "zh-TW", canRefetch: false }, schedule);
+  await drain();
+  let s = await jobs.getTranscriptState(video);
+  assert.equal(fetchCalls.length, before);
+  assert.equal(s.transcript?.version, 1);
+  assert.equal(s.translation?.transcriptVersion, 1);
+
+  // Uploader/admin (default): the same request re-fetches as before.
+  await jobs.requestTranscript(video, { language: "en" }, schedule);
+  await drain();
+  s = await jobs.getTranscriptState(video);
+  assert.equal(s.transcript?.version, 2);
+  assert.equal(s.transcript?.language, "en");
+});

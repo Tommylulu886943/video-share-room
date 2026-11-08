@@ -21,8 +21,11 @@ export interface NoteView {
   /** Position on the original timeline (integer ms). */
   startMs: number;
   body: string;
-  /** null when the author's account no longer exists. */
-  author: { id: string; username: string } | null;
+  /**
+   * null when the author's account no longer exists. `name` is the author's
+   * display name in this club (falls back to the login username).
+   */
+  author: { id: string; username: string; name: string } | null;
   createdAt: string;
   edited: boolean;
   /** The viewer wrote it (may edit and delete). */

@@ -19,7 +19,12 @@ export const POST = route(async (req: Request) => {
     data: { emailVerified: true },
   });
   // Promote applications that were waiting on verification (FR-1 AC#2/#3).
-  await promoteVerifiedMemberships(userId);
+  const statuses = await promoteVerifiedMemberships(userId);
 
-  return jsonOk({ verified: true });
+  // Tell the page what actually happened so it doesn't promise a review that
+  // isn't coming (clubs without approval auto-approve on verification).
+  return jsonOk({
+    verified: true,
+    approved: statuses.length > 0 && statuses.every((s) => s === "APPROVED"),
+  });
 });

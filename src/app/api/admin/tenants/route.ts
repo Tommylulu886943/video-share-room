@@ -24,25 +24,39 @@ export const POST = route(async (req: Request) => {
   });
   if (slugTaken) throw new ApiError(409, "此社團代稱已被使用");
 
-  // Resolve the admin account: reuse an existing user, or create a new one.
-  let adminUser = await prisma.user.findFirst({
+  // Resolve the admin account: reuse an existing user only when BOTH the
+  // username and the email point at the same account; otherwise the operator
+  // typed a taken username (or email) for what they meant to be a new account,
+  // and silently promoting a stranger would be wrong.
+  const matches = await prisma.user.findMany({
     where: { OR: [{ username: input.adminUsername }, { email: input.adminEmail }] },
   });
-
-  if (!adminUser) {
-    if (!input.adminPassword) {
-      throw new ApiError(400, "建立新管理者帳號時必須提供密碼");
-    }
-    adminUser = await prisma.user.create({
-      data: {
-        username: input.adminUsername,
-        email: input.adminEmail,
-        passwordHash: await hashPassword(input.adminPassword),
-        emailVerified: true, // provisioned by the platform owner
-      },
-    });
+  const existing = matches.find(
+    (u) => u.username === input.adminUsername && u.email === input.adminEmail,
+  );
+  if (!existing && matches.length > 0) {
+    const byName = matches.some((u) => u.username === input.adminUsername);
+    throw new ApiError(
+      409,
+      byName
+        ? "此帳號已存在但 email 不符；若要指定既有帳號，請填入該帳號的 email"
+        : "此 email 已被其他帳號使用；若要指定既有帳號，請填入該帳號的帳號名稱",
+    );
+  }
+  if (!existing && !input.adminPassword) {
+    throw new ApiError(400, "建立新管理者帳號時必須提供密碼");
   }
 
+  const membershipBase = {
+    name: input.adminName,
+    level: values.level ?? "",
+    attributes: JSON.stringify(values),
+    role: TenantRole.ADMIN,
+    status: MembershipStatus.APPROVED,
+  };
+
+  // One nested create: tenant + admin membership (+ the new user when needed)
+  // commit together, so a failure never leaves an orphan account behind.
   const tenant = await prisma.tenant.create({
     data: {
       isPrivate: input.isPrivate,
@@ -52,14 +66,19 @@ export const POST = route(async (req: Request) => {
       brandColor: input.brandColor ?? "#2563eb",
       brandLogo: input.brandLogo ?? null,
       memberships: {
-        create: {
-          userId: adminUser.id,
-          name: input.adminName,
-          level: values.level ?? "",
-          attributes: JSON.stringify(values),
-          role: TenantRole.ADMIN,
-          status: MembershipStatus.APPROVED,
-        },
+        create: existing
+          ? { ...membershipBase, user: { connect: { id: existing.id } } }
+          : {
+              ...membershipBase,
+              user: {
+                create: {
+                  username: input.adminUsername,
+                  email: input.adminEmail,
+                  passwordHash: await hashPassword(input.adminPassword as string),
+                  emailVerified: true, // provisioned by the platform owner
+                },
+              },
+            },
       },
     },
   });

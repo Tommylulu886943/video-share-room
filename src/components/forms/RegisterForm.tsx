@@ -111,21 +111,19 @@ export function RegisterForm({
           ))}
         </select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label" htmlFor="name">
-            名稱
-          </label>
-          <input
-            id="name"
-            className="input"
-            placeholder="隊友看到的稱呼"
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            required
-          />
-        </div>
-
+      <div>
+        <label className="label" htmlFor="name">
+          名稱
+        </label>
+        <input
+          id="name"
+          className="input"
+          placeholder="隊友看到的稱呼"
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          maxLength={60}
+          required
+        />
       </div>
       <div>
         <label className="label" htmlFor="username">

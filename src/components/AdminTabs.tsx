@@ -30,7 +30,7 @@ export function AdminTabs({ slug }: { slug: string }) {
             className={
               "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors " +
               (active
-                ? "bg-[var(--brand)] text-white"
+                ? "bg-[var(--brand)] text-[var(--brand-fg)]"
                 : "text-slate-600 hover:bg-slate-100")
             }
           >

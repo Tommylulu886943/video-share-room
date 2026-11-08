@@ -14,6 +14,7 @@ import {
 } from "@/lib/categories";
 import type { Prisma } from "@/generated/prisma/client";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { formatTaipeiDate } from "@/lib/time";
 
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
@@ -93,17 +94,19 @@ export default async function BoardPage({
     filters.push({ favorites: { some: { userId: session.id } } });
   }
 
-  const accessibleCategories = await prisma.video.findMany({
+  // Per-category counts straight from the database instead of pulling one row
+  // per accessible video just to count them.
+  const grouped = await prisma.video.groupBy({
+    by: ["categoryId"],
     where: viewableVideoWhere(ctx),
-    select: { categoryId: true },
+    _count: { _all: true },
   });
-  const categoryCounts = accessibleCategories.reduce<Record<string, number>>(
-    (counts, video) => {
-      if (video.categoryId) counts[video.categoryId] = (counts[video.categoryId] ?? 0) + 1;
-      return counts;
-    },
-    {},
-  );
+  const categoryCounts: Record<string, number> = {};
+  let totalCount = 0;
+  for (const g of grouped) {
+    totalCount += g._count._all;
+    if (g.categoryId) categoryCounts[g.categoryId] = g._count._all;
+  }
 
   const sort = (Array.isArray(sp.sort) ? sp.sort[0] : sp.sort) ?? "new";
   const orderBy: Prisma.VideoOrderByWithRelationInput[] =
@@ -136,11 +139,10 @@ export default async function BoardPage({
     visibility: v.visibility,
     categoryLabel: categoryLabel(flatCategories, v.categoryId),
     tags: v.tags.map((t) => t.tag.name),
-    // Show the recorded date if known, otherwise fall back to the upload date.
-    recordedOn: (v.recordedOn ?? v.createdAt)
-      .toISOString()
-      .slice(0, 10)
-      .replace(/-/g, "/"),
+    // Show the recorded date if known, otherwise fall back to the upload date
+    // (in Taiwan time — slicing the UTC string shifted early-morning uploads
+    // to the previous day).
+    recordedOn: formatTaipeiDate(v.recordedOn ?? v.createdAt),
   }));
 
   return (
@@ -151,7 +153,7 @@ export default async function BoardPage({
           basePath={`/t/${slug}`}
           categories={buildTree(flatCategories)}
           counts={categoryCounts}
-          totalCount={accessibleCategories.length}
+          totalCount={totalCount}
           selectedCatId={catId}
           search={{ q, tagIds, sort, favOnly }}
         />
@@ -179,7 +181,9 @@ export default async function BoardPage({
 
           <div className="card mb-5 p-4">
             <BoardFilters
-              key={`${catId}:${tagIds.join(",")}:${q}:${sort}:${favOnly}`}
+              // `q` is deliberately not part of the key: remounting on every
+              // debounced search destroyed the focused input mid-typing.
+              key={`${catId}:${tagIds.join(",")}:${sort}:${favOnly}`}
               basePath={`/t/${slug}`}
               tags={tags}
               selected={{ catId, tagIds, q, sort, favOnly }}

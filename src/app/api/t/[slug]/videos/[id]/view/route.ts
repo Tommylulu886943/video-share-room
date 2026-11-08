@@ -21,7 +21,7 @@ export const POST = route(
 
     const video = await prisma.video.findFirst({
       where: { AND: [{ id }, viewableVideoWhere(ctx)] },
-      include: { access: { select: { membershipId: true } } },
+      select: { id: true },
     });
     if (!video) {
       throw new ApiError(404, "找不到影片");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export function BoardFilters({
@@ -20,6 +20,16 @@ export function BoardFilters({
 }) {
   const router = useRouter();
   const [q, setQ] = useState(selected.q);
+  // The keyword we last navigated with. The component isn't remounted on `q`
+  // changes (so typing keeps focus), so when the URL's q changes for another
+  // reason (back/forward, a link) we sync it in here.
+  const pushedQ = useRef(selected.q);
+  useEffect(() => {
+    if (selected.q !== pushedQ.current) {
+      pushedQ.current = selected.q;
+      setQ(selected.q);
+    }
+  }, [selected.q]);
   // "" (show all) maps to the explicit "all" value in the dropdown/URL, so that
   // selecting 全部分類 overrides a configured default category.
   const [catId, setCatId] = useState(selected.catId || "all");
@@ -27,21 +37,27 @@ export function BoardFilters({
   const [sort, setSort] = useState(selected.sort || "new");
   const [favOnly, setFavOnly] = useState(selected.favOnly);
 
-  function push(next: {
-    q: string;
-    catId: string;
-    tagIds: string[];
-    sort: string;
-    favOnly: boolean;
-  }) {
+  function push(
+    next: {
+      q: string;
+      catId: string;
+      tagIds: string[];
+      sort: string;
+      favOnly: boolean;
+    },
+    /** Keystroke-driven searches replace the entry so Back isn't one letter at a time. */
+    mode: "push" | "replace" = "push",
+  ) {
     const p = new URLSearchParams();
-    if (next.q.trim()) p.set("q", next.q.trim());
+    const trimmed = next.q.trim();
+    if (trimmed) p.set("q", trimmed);
     if (next.catId) p.set("cat", next.catId);
     next.tagIds.forEach((t) => p.append("tag", t));
     if (next.sort && next.sort !== "new") p.set("sort", next.sort);
     if (next.favOnly) p.set("fav", "1");
     const qs = p.toString();
-    router.push(qs ? `${basePath}?${qs}` : basePath);
+    pushedQ.current = trimmed;
+    router[mode](qs ? `${basePath}?${qs}` : basePath);
   }
 
   function selectSort(s: string) {
@@ -74,8 +90,8 @@ export function BoardFilters({
 
   // Debounced keyword search.
   useEffect(() => {
-    if (q === selected.q) return;
-    const t = setTimeout(() => push({ q, catId, tagIds, sort, favOnly }), 350);
+    if (q.trim() === pushedQ.current) return;
+    const t = setTimeout(() => push({ q, catId, tagIds, sort, favOnly }, "replace"), 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
@@ -132,7 +148,7 @@ export function BoardFilters({
               onClick={() => toggleTag(t.id)}
               className={`chip border transition ${
                 on
-                  ? "border-transparent bg-[var(--brand)] text-white"
+                  ? "border-transparent bg-[var(--brand)] text-[var(--brand-fg)]"
                   : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
               }`}
             >

@@ -20,8 +20,15 @@ export function UserMenu({
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   async function logout() {
@@ -33,9 +40,12 @@ export function UserMenu({
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-bold uppercase text-white transition hover:bg-white/25"
+        className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-bold uppercase text-[var(--brand-fg)] transition hover:bg-white/25"
         aria-label="使用者選單"
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {username.slice(0, 1)}
       </button>

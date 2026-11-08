@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { getSession, type SessionUser } from "@/lib/session";
 import { resolveTenantContext, type TenantContext } from "@/lib/tenant";
 
@@ -20,11 +21,21 @@ export function jsonError(status: number, error: string): NextResponse {
   return NextResponse.json({ ok: false, error }, { status });
 }
 
+/** Prisma P2002: a unique constraint was violated. */
+export function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+}
+
 export function toErrorResponse(err: unknown): NextResponse {
   if (err instanceof ApiError) return jsonError(err.status, err.message);
   if (err instanceof ZodError) {
     const first = err.issues[0];
     return jsonError(422, first?.message ?? "輸入資料有誤");
+  }
+  // A check-then-create race lost to a concurrent identical request: the row
+  // now exists, which is a conflict for the caller — not a server fault.
+  if (isUniqueViolation(err)) {
+    return jsonError(409, "資料已存在，請重新整理後再試");
   }
   console.error("[api] unhandled error:", err);
   return jsonError(500, "伺服器發生錯誤");

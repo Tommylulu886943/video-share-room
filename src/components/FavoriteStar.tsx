@@ -18,7 +18,7 @@ export function FavoriteStar({
   const [busy, setBusy] = useState(false);
 
   async function toggle(e: React.MouseEvent) {
-    // Inside a card <Link>: don't navigate when toggling.
+    // Sits on top of a card's stretched link: never let the click navigate.
     e.preventDefault();
     e.stopPropagation();
     if (busy) return;

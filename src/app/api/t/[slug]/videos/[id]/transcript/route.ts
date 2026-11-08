@@ -32,7 +32,13 @@ export const POST = route(async (req: Request, { params }: Params) => {
   if (body.force && !ctx.canUpload) throw new ApiError(403, "只有可上傳影片的成員能重新取得逐字稿");
   await requestTranscript(
     video,
-    { language: body.language ?? null, force: body.force, translateTo: body.translateTo ?? null, userId: session.id },
+    {
+      language: body.language ?? null,
+      force: body.force,
+      translateTo: body.translateTo ?? null,
+      userId: session.id,
+      canRefetch: ctx.canUpload,
+    },
     scheduleAfter,
   ).catch(mapRequestError);
   return jsonOk(await getTranscriptState(video), NO_STORE);

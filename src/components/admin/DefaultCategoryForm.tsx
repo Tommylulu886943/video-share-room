@@ -20,7 +20,10 @@ export function DefaultCategoryForm({
   current: string | null;
 }) {
   const router = useRouter();
-  const [value, setValue] = useState(current ?? "");
+  // A default pointing at a category that no longer exists renders as blank in
+  // a controlled <select>; treat it as "不指定" (the board already does).
+  const known = new Set(categories.flatMap((c) => [c.id, ...c.children.map((s) => s.id)]));
+  const [value, setValue] = useState(current && known.has(current) ? current : "");
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

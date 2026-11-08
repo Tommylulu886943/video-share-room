@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPatch } from "@/lib/client";
+import { brandForeground } from "@/lib/brand";
 
 export function BrandingForm({
   slug,
@@ -93,8 +94,8 @@ export function BrandingForm({
       <div className="flex flex-col gap-1">
         <span className="label">預覽</span>
         <div
-          className="flex items-center gap-3 rounded-xl px-4 py-3 text-white shadow-sm"
-          style={{ background: brandColor }}
+          className="flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm"
+          style={{ background: brandColor, color: brandForeground(brandColor) }}
         >
           <span className="text-2xl leading-none">{brandLogo || "🥋"}</span>
           <span className="text-lg font-semibold">{name || "社團名稱"}</span>

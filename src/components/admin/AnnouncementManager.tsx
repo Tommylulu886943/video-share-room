@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete, apiPatch, apiPost } from "@/lib/client";
 import { ANNOUNCEMENT_COLORS, announcementColorStyles, type AnnouncementColor } from "@/lib/announcements";
@@ -26,6 +26,19 @@ function toLocalInput(iso: string | null) {
   return local.toISOString().slice(0, 16);
 }
 
+// Shown in Taiwan time like the banner on the board (toLocaleString() without a
+// zone rendered in the *server's* zone during SSR and then differently on the
+// client → hydration mismatch).
+const EXPIRY_FORMAT = new Intl.DateTimeFormat("zh-TW", {
+  timeZone: "Asia/Taipei",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 function payload(form: FormState) {
   return {
     title: form.title,
@@ -41,6 +54,13 @@ export function AnnouncementManager({ slug, announcements }: { slug: string; ann
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The picker's lower bound depends on the browser's clock/zone: undefined on
+  // the server, the local "now" on the client (no hydration mismatch).
+  const minExpiry = useSyncExternalStore(
+    () => () => {},
+    () => toLocalInput(new Date().toISOString()),
+    () => undefined,
+  );
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -136,7 +156,7 @@ export function AnnouncementManager({ slug, announcements }: { slug: string; ann
           </fieldset>
           <div>
             <label className="label" htmlFor="announcement-expiry">有效期限（選填）</label>
-            <input id="announcement-expiry" type="datetime-local" className="input sm:max-w-sm" min={toLocalInput(new Date().toISOString())} value={form.expiresAt} onChange={(e) => update("expiresAt", e.target.value)} />
+            <input id="announcement-expiry" type="datetime-local" className="input sm:max-w-sm" min={minExpiry} value={form.expiresAt} onChange={(e) => update("expiresAt", e.target.value)} />
             <p className="mt-1 text-xs text-slate-500">不設定代表持續顯示，直到管理員刪除。</p>
           </div>
           <div className={`min-w-0 rounded-xl border p-4 ${announcementColorStyles[form.color].panel}`}>
@@ -160,7 +180,7 @@ export function AnnouncementManager({ slug, announcements }: { slug: string; ann
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2"><h3 className="min-w-0 break-words font-semibold">{item.title}</h3><span className={`chip ${expired ? "bg-slate-200 text-slate-600" : "bg-white/70 text-current"}`}>{expired ? "已到期" : "顯示中"}</span></div>
                   <p className="mt-1 break-words whitespace-pre-wrap text-sm leading-6 opacity-90">{item.content}</p>
-                  <p className="mt-2 text-xs opacity-60">{item.expiresAt ? `有效至 ${new Date(item.expiresAt).toLocaleString("zh-TW")}` : "無到期日"}</p>
+                  <p className="mt-2 text-xs opacity-60">{item.expiresAt ? `有效至 ${EXPIRY_FORMAT.format(new Date(item.expiresAt))}（台灣時間）` : "無到期日"}</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button type="button" className="btn-outline" onClick={() => edit(item)}>編輯</button>

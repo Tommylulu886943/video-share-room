@@ -35,7 +35,7 @@ export function TenantSwitcher({
     return (
       <div className="flex items-center gap-2">
         <Logo logo={current.brandLogo} />
-        <span className="font-bold text-white">{current.name}</span>
+        <span className="font-bold text-[var(--brand-fg)]">{current.name}</span>
       </div>
     );
   }
@@ -44,7 +44,7 @@ export function TenantSwitcher({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-white transition hover:bg-white/10"
+        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[var(--brand-fg)] transition hover:bg-white/10"
         aria-haspopup="listbox"
         aria-expanded={open}
       >

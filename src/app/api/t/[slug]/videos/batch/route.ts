@@ -37,12 +37,40 @@ export const POST = route(
 
     const failed: { input: string; reason: string }[] = [];
     const valid: { input: string; source: VideoSource; id: string }[] = [];
+    const seen = new Set<string>();
     for (const raw of input.items) {
       const ref = parseVideoRef(raw);
       if (!ref) {
         failed.push({ input: raw, reason: "請輸入有效的 HTTP(S) 網址或影片 ID" });
-      } else {
-        valid.push({ input: raw, source: ref.source, id: ref.id });
+        continue;
+      }
+      // The same link pasted twice must not become two rows.
+      const key = `${ref.source}:${ref.id}`;
+      if (seen.has(key)) {
+        failed.push({ input: raw, reason: "重複的連結（已略過）" });
+        continue;
+      }
+      seen.add(key);
+      valid.push({ input: raw, source: ref.source, id: ref.id });
+    }
+
+    // Skip videos this club already has (there is no unique index on
+    // (tenantId, youtubeId), so re-importing would duplicate silently).
+    if (valid.length > 0) {
+      const existing = await prisma.video.findMany({
+        where: {
+          tenantId: ctx.tenant.id,
+          OR: valid.map((v) => ({ source: v.source, youtubeId: v.id })),
+        },
+        select: { source: true, youtubeId: true },
+      });
+      const have = new Set(existing.map((e) => `${e.source}:${e.youtubeId}`));
+      for (let i = valid.length - 1; i >= 0; i--) {
+        const v = valid[i];
+        if (have.has(`${v.source}:${v.id}`)) {
+          failed.push({ input: v.input, reason: "此影片已在社團中（已略過）" });
+          valid.splice(i, 1);
+        }
       }
     }
 
@@ -113,32 +141,47 @@ export const PATCH = route(
       ? await validateTags(ctx.tenant.id, input.tags.tagIds, ctx)
       : [];
 
-    for (const { id } of owned) {
-      await prisma.video.update({
-        where: { id },
-        data: {
-          ...(categoryId !== undefined ? { categoryId } : {}),
-          ...(input.tags?.mode === "replace"
-            ? {
-                tags: {
-                  deleteMany: {},
-                  create: tagIds.map((tagId) => ({ tagId })),
-                },
-              }
-            : input.tags?.mode === "add"
-              ? {
-                  tags: {
-                    connectOrCreate: tagIds.map((tagId) => ({
-                      where: { videoId_tagId: { videoId: id, tagId } },
-                      create: { tagId },
-                    })),
-                  },
-                }
-              : input.tags?.mode === "remove"
-                ? { tags: { deleteMany: { tagId: { in: tagIds } } } }
-                : {}),
-        },
+    const videoIds = owned.map((v) => v.id);
+
+    // Set-based writes instead of one round-trip per video: 500 sequential
+    // updates over Turso's HTTP driver blew past the function timeout and left
+    // the batch half-applied. (No createMany: it fails on libSQL inside a
+    // transaction; nested relation writes are used for the inserts.)
+    if (categoryId !== undefined) {
+      await prisma.video.updateMany({
+        where: { id: { in: videoIds } },
+        data: { categoryId },
       });
+    }
+    if (input.tags?.mode === "remove") {
+      await prisma.videoTag.deleteMany({
+        where: { videoId: { in: videoIds }, tagId: { in: tagIds } },
+      });
+    } else if (input.tags?.mode === "replace") {
+      await prisma.videoTag.deleteMany({ where: { videoId: { in: videoIds } } });
+    }
+    if ((input.tags?.mode === "replace" || input.tags?.mode === "add") && tagIds.length > 0) {
+      // Only rows that are missing are inserted, so "add" is idempotent and
+      // "replace" (after the delete above) inserts the full set.
+      const present = await prisma.videoTag.findMany({
+        where: { videoId: { in: videoIds }, tagId: { in: tagIds } },
+        select: { videoId: true, tagId: true },
+      });
+      const has = new Set(present.map((p) => `${p.videoId}:${p.tagId}`));
+      const writes = videoIds.flatMap((videoId) => {
+        const missing = tagIds.filter((tagId) => !has.has(`${videoId}:${tagId}`));
+        return missing.length
+          ? [{ videoId, create: missing.map((tagId) => ({ tagId })) }]
+          : [];
+      });
+      const CHUNK = 20;
+      for (let i = 0; i < writes.length; i += CHUNK) {
+        await Promise.all(
+          writes.slice(i, i + CHUNK).map((w) =>
+            prisma.video.update({ where: { id: w.videoId }, data: { tags: { create: w.create } } }),
+          ),
+        );
+      }
     }
 
     const changes = [

@@ -65,8 +65,21 @@ export const DELETE = route(
     const { slug, id } = await params;
     const { session, ctx } = await requireTenantContext(slug, { admin: true });
     const cat = await loadOwned(ctx.tenant.id, id);
-    // Children cascade; videos' categoryId is set null by the schema.
+    // Children cascade; videos' categoryId is set null by the schema. The
+    // tenant's default-category pointer is a plain id (no FK), so clear it
+    // ourselves when it points at this category or one of its children.
+    const children = await prisma.category.findMany({
+      where: { parentId: id },
+      select: { id: true },
+    });
     await prisma.category.delete({ where: { id } });
+    await prisma.tenant.updateMany({
+      where: {
+        id: ctx.tenant.id,
+        defaultCategoryId: { in: [id, ...children.map((c) => c.id)] },
+      },
+      data: { defaultCategoryId: null },
+    });
     await recordAudit({
       tenantId: ctx.tenant.id,
       ...auditActor(session, ctx),

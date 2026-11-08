@@ -35,3 +35,9 @@ test("extension always targets production and encodes source/title safely", () =
     assert.throws(() => importUrl(invalid, ""));
   }
 });
+
+test("less common YouTube hosts and /live/ links are still YouTube", () => {
+  assert.deepEqual(parseVideoRef("https://music.youtube.com/watch?v=dQw4w9WgXcQ"), { source: "youtube", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoRef("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"), { source: "youtube", id: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseVideoRef("https://www.youtube.com/live/dQw4w9WgXcQ?feature=share"), { source: "youtube", id: "dQw4w9WgXcQ" });
+});

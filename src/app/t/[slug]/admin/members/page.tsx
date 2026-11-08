@@ -8,6 +8,17 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { MemberReview } from "@/components/admin/MemberReview";
 import { MemberUploadToggle } from "@/components/admin/MemberUploadToggle";
 import { MemberActions } from "@/components/admin/MemberActions";
+import { formatTaipeiDateTime } from "@/lib/time";
+
+/** A malformed attributes row must not take the whole members page down. */
+function safeAttributes(json: string): Record<string, string> {
+  try {
+    const v = JSON.parse(json) as unknown;
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
 
 export default async function MembersPage({
   params,
@@ -61,9 +72,7 @@ export default async function MembersPage({
                   <dd>{m.user.email}</dd>
                   <dt className="text-slate-500">申請時間</dt>
                   <dd>
-                    {m.appliedAt
-                      ? m.appliedAt.toISOString().slice(0, 16).replace("T", " ")
-                      : "—"}
+                    {m.appliedAt ? formatTaipeiDateTime(m.appliedAt) : "—"}
                   </dd>
                 </dl>
                 <MemberReview slug={slug} membershipId={m.id} />
@@ -128,7 +137,7 @@ export default async function MembersPage({
                             id: m.id,
                             name: m.name,
                             username: m.user.username,
-                            attributes: JSON.parse(m.attributes) as Record<string, string>,
+                            attributes: safeAttributes(m.attributes),
                           }}
                         />
                       )}

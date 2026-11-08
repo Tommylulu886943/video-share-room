@@ -41,7 +41,7 @@ export function CategorySidebar({
   const rowClass = (active: boolean) =>
     `flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm transition ${
       active
-        ? "bg-[var(--brand)] font-semibold text-white shadow-sm"
+        ? "bg-[var(--brand)] font-semibold text-[var(--brand-fg)] shadow-sm"
         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
     }`;
 
@@ -49,7 +49,7 @@ export function CategorySidebar({
     <nav aria-label="影片分類" className="space-y-1">
       <Link href={href("")} className={rowClass(!selectedCatId)}>
         <span>全部影片</span>
-        <span className={selectedCatId ? "text-slate-400" : "text-white/80"}>
+        <span className={selectedCatId ? "text-slate-400" : "text-[var(--brand-fg)]/80"}>
           {totalCount}
         </span>
       </Link>
@@ -66,7 +66,7 @@ export function CategorySidebar({
               <span>{category.name}</span>
               <span
                 className={
-                  selectedCatId === category.id ? "text-white/80" : "text-slate-400"
+                  selectedCatId === category.id ? "text-[var(--brand-fg)]/80" : "text-slate-400"
                 }
               >
                 {categoryCount}
@@ -84,7 +84,7 @@ export function CategorySidebar({
                     <span
                       className={
                         selectedCatId === child.id
-                          ? "text-white/80"
+                          ? "text-[var(--brand-fg)]/80"
                           : "text-slate-400"
                       }
                     >

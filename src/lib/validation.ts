@@ -1,6 +1,15 @@
 import { z } from "zod";
 import { memberFieldsSchema, attributeValuesSchema } from "@/lib/member-fields";
 import { MembershipStatus, Visibility } from "@/lib/constants";
+import { parseWebUrl } from "@/lib/sources";
+
+// Cover image: http(s) only (no javascript:/data:/file:), no credentials, bounded
+// length — the value is rendered into every viewer's <img src>.
+const imageUrl = z
+  .string()
+  .trim()
+  .max(2048, "封面圖網址過長")
+  .refine((v) => v === "" || parseWebUrl(v) !== null, "封面圖網址格式不正確（僅支援 http/https）");
 
 const username = z
   .string()
@@ -68,12 +77,7 @@ export const videoCreateSchema = z.object({
   title: z.string().trim().max(140).optional().or(z.literal("")),
   youtube: z.string().trim().min(1, "請填寫 YouTube 連結或 ID"),
   // Optional custom cover image URL (overrides the auto-fetched one).
-  thumbnailUrl: z
-    .string()
-    .trim()
-    .url("封面圖網址格式不正確")
-    .or(z.literal(""))
-    .nullish(),
+  thumbnailUrl: imageUrl.nullish(),
   notes: z.string().trim().max(2000).or(z.literal("")).nullish(),
   recordedOn: z.string().trim().or(z.literal("")).nullish(),
   categoryId: z.string().min(1).nullish(),
@@ -135,7 +139,7 @@ export const tenantCreateSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "請使用 #RRGGBB 格式")
     .optional(),
-  brandLogo: z.string().trim().max(8).optional(),
+  brandLogo: z.string().trim().max(8, "Logo 最多 8 個字元").optional(),
   // Admin to assign: either an existing username/email, or new-account fields.
   adminUsername: username,
   adminEmail: email,
@@ -151,10 +155,10 @@ export const accessUpdateSchema = z.object({
 });
 
 export const brandingSchema = z.object({
-  name: z.string().trim().min(1).max(60).optional(),
-  brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  name: z.string().trim().min(1, "請填寫社團名稱").max(60, "社團名稱最多 60 個字元").optional(),
+  brandColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "請使用 #RRGGBB 格式").optional(),
   // null / "" clears the logo; undefined leaves it unchanged.
-  brandLogo: z.string().trim().max(8).or(z.literal("")).nullish(),
+  brandLogo: z.string().trim().max(8, "Logo 最多 8 個字元").or(z.literal("")).nullish(),
 });
 
 export const settingsSchema = z.object({

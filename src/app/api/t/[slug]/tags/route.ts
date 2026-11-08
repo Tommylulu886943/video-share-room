@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { tagCreateSchema } from "@/lib/validation";
 import {
   ApiError,
+  isUniqueViolation,
   jsonOk,
   readJson,
   requireTenantContext,
@@ -23,9 +24,16 @@ export const POST = route(
     if (exists) throw new ApiError(409, "標籤已存在");
 
     const count = await prisma.tag.count({ where: { tenantId: ctx.tenant.id } });
-    const tag = await prisma.tag.create({
-      data: { tenantId: ctx.tenant.id, name, sortOrder: count },
-    });
+    let tag;
+    try {
+      tag = await prisma.tag.create({
+        data: { tenantId: ctx.tenant.id, name, sortOrder: count },
+      });
+    } catch (err) {
+      // Two admins adding the same tag at once: the second must see 409, not 500.
+      if (isUniqueViolation(err)) throw new ApiError(409, "標籤已存在");
+      throw err;
+    }
     await recordAudit({
       tenantId: ctx.tenant.id,
       ...auditActor(session, ctx),

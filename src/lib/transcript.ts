@@ -305,20 +305,53 @@ export type CaptionOutcome =
   | { kind: "none"; reason: "no_captions" | "language_unavailable"; language: string | null; available: LanguageOption[] }
   | { kind: "ambiguous"; available: LanguageOption[] };
 
-async function ytFetch(url: string | URL, init: RequestInit): Promise<Response> {
+async function ytFetch(fetchImpl: typeof fetch, url: string | URL, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+    return await fetchImpl(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   } catch (err) {
     throw new TranscriptError("fetch_failed", `無法連線 YouTube（${(err as Error).message}）`, true);
   }
 }
 
-/** Fetch the original-language captions for a YouTube video. */
-export async function fetchYouTubeCaptions(
-  videoId: string,
-  requested: string | null,
-): Promise<CaptionOutcome> {
-  const res = await ytFetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+/**
+ * YouTube's bot wall for cloud/datacenter IPs ("Sign in to confirm you're not a
+ * bot") — unlike age/private/members-only limits it says nothing about the video.
+ */
+export function isBotCheck(status: string, reason: string | undefined): boolean {
+  return status === "LOGIN_REQUIRED" && /\bbot\b/i.test(reason ?? "");
+}
+
+type PlayerResponse = {
+  playabilityStatus?: { status?: string; reason?: string };
+  captions?: {
+    playerCaptionsTracklistRenderer?: {
+      captionTracks?: {
+        baseUrl: string;
+        languageCode: string;
+        kind?: string;
+        name?: { simpleText?: string; runs?: { text: string }[] };
+      }[];
+    };
+  };
+  streamingData?: { adaptiveFormats?: InnertubeFormat[] };
+};
+
+const PLAYER_URL = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+const TV_UA = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version";
+/** Fallback when the /tv page can't be read; YouTube rejects very old versions. */
+const TV_VERSION_FALLBACK = "7.20261102.18.00";
+let tvVersionCache: string | null = null;
+
+async function readPlayer(res: Response): Promise<PlayerResponse> {
+  if (res.status === 429 || res.status >= 500) {
+    throw new TranscriptError("fetch_failed", `YouTube 暫時無法回應（HTTP ${res.status}）`, true);
+  }
+  if (!res.ok) throw new TranscriptError("fetch_failed", `YouTube 回應錯誤（HTTP ${res.status}）`);
+  return (await res.json()) as PlayerResponse;
+}
+
+async function androidPlayer(fetchImpl: typeof fetch, videoId: string): Promise<PlayerResponse> {
+  const res = await ytFetch(fetchImpl, PLAYER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": ANDROID_UA },
     body: JSON.stringify({
@@ -328,34 +361,106 @@ export async function fetchYouTubeCaptions(
       videoId,
     }),
   });
-  if (res.status === 429 || res.status >= 500) {
-    throw new TranscriptError("fetch_failed", `YouTube 暫時無法回應（HTTP ${res.status}）`, true);
+  return readPlayer(res);
+}
+
+async function tvClientVersion(fetchImpl: typeof fetch): Promise<string> {
+  if (tvVersionCache) return tvVersionCache;
+  try {
+    const res = await ytFetch(fetchImpl, "https://www.youtube.com/tv", { headers: { "User-Agent": TV_UA } });
+    const v = (await res.text()).match(/"INNERTUBE_CLIENT_VERSION":"([\d.]+)"/)?.[1];
+    if (v) tvVersionCache = v;
+  } catch {
+    // fall through to the bundled version
   }
-  if (!res.ok) throw new TranscriptError("fetch_failed", `YouTube 回應錯誤（HTTP ${res.status}）`);
-  const player = (await res.json()) as {
-    playabilityStatus?: { status?: string; reason?: string };
-    captions?: {
-      playerCaptionsTracklistRenderer?: {
-        captionTracks?: {
-          baseUrl: string;
-          languageCode: string;
-          kind?: string;
-          name?: { simpleText?: string; runs?: { text: string }[] };
-        }[];
-      };
-    };
-    streamingData?: { adaptiveFormats?: InnertubeFormat[] };
-  };
-  const status = player.playabilityStatus?.status ?? "UNKNOWN";
+  return tvVersionCache ?? TV_VERSION_FALLBACK;
+}
+
+/** Signed-in TV client: the one Innertube client that honours web cookies without a PO token. */
+async function tvPlayer(fetchImpl: typeof fetch, videoId: string, auth: Record<string, string>): Promise<PlayerResponse> {
+  const version = await tvClientVersion(fetchImpl);
+  const res = await ytFetch(fetchImpl, PLAYER_URL, {
+    method: "POST",
+    headers: {
+      ...auth,
+      "Content-Type": "application/json",
+      "User-Agent": TV_UA,
+      Origin: "https://www.youtube.com",
+      "X-Origin": "https://www.youtube.com",
+      "X-YouTube-Client-Name": "7",
+      "X-YouTube-Client-Version": version,
+    },
+    body: JSON.stringify({
+      context: { client: { clientName: "TVHTML5", clientVersion: version, hl: "en" } },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true,
+    }),
+  });
+  return readPlayer(res);
+}
+
+export interface CaptionFetchOptions {
+  /** Route through a proxy (see youtube-fetch.ts). */
+  fetchImpl?: typeof fetch;
+  /**
+   * Signed-in session headers (Cookie + SAPISIDHASH). When set, the cloud-IP bot
+   * wall is retried as a signed-in TV client.
+   */
+  auth?: () => Promise<Record<string, string>>;
+  /** Go straight to the signed-in client (diagnostics). */
+  preferAuth?: boolean;
+}
+
+const playerStatus = (p: PlayerResponse) => p.playabilityStatus?.status ?? "UNKNOWN";
+
+/** Fetch the original-language captions for a YouTube video. */
+export async function fetchYouTubeCaptions(
+  videoId: string,
+  requested: string | null,
+  opts: CaptionFetchOptions = {},
+): Promise<CaptionOutcome> {
+  const { fetchImpl = fetch, auth, preferAuth = false } = opts;
+  let signedIn: Record<string, string> | null = null;
+  let player: PlayerResponse;
+  if (auth && preferAuth) {
+    signedIn = await auth();
+    player = await tvPlayer(fetchImpl, videoId, signedIn);
+  } else {
+    player = await androidPlayer(fetchImpl, videoId);
+    if (auth && isBotCheck(playerStatus(player), player.playabilityStatus?.reason)) {
+      signedIn = await auth();
+      player = await tvPlayer(fetchImpl, videoId, signedIn);
+    }
+  }
+
+  const status = playerStatus(player);
   const rawTracks = player.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
   // A blocked/unplayable response also lacks captions — never report that as "no captions".
   if (status !== "OK" && !rawTracks.length) {
     const reason = player.playabilityStatus?.reason;
+    const detail = { playability: status, reason: reason ?? null, signedIn: !!signedIn };
+    if (signedIn && status === "LOGIN_REQUIRED") {
+      throw new TranscriptError(
+        "youtube_auth_failed",
+        "YouTube 不接受伺服器設定的登入資訊，請管理者重新設定後再試。",
+        false,
+        { ...detail, hint: "YOUTUBE_COOKIES 可能已過期或被登出，請重新匯出後更新" },
+      );
+    }
+    if (isBotCheck(status, reason)) {
+      throw new TranscriptError(
+        "youtube_blocked",
+        "YouTube 拒絕了伺服器的連線（要求驗證不是機器人）。這是 YouTube 封鎖雲端主機 IP 造成的，與影片本身無關，需由管理者調整伺服器設定。",
+        false,
+        { ...detail, hint: "設定 YouTube 登入 cookie（YOUTUBE_COOKIES）或代理（YOUTUBE_PROXY_URL）" },
+      );
+    }
     throw new TranscriptError(
       "source_restricted",
       `YouTube 限制存取（${status}${reason ? `：${reason}` : ""}）`,
       false,
-      { playability: status, reason: reason ?? null },
+      detail,
     );
   }
   const tracks: CaptionTrack[] = rawTracks.map((t) => ({
@@ -376,12 +481,17 @@ export async function fetchYouTubeCaptions(
   if (url.hostname !== "www.youtube.com") throw new TranscriptError("fetch_failed", "字幕來源網址異常");
   url.searchParams.delete("fmt");
   url.searchParams.delete("tlang"); // never accept a machine-translated rendition as the original
-  const xmlRes = await ytFetch(url, { headers: { "User-Agent": ANDROID_UA } });
+  const xmlRes = await ytFetch(fetchImpl, url, {
+    headers: signedIn ? { Cookie: signedIn.Cookie ?? "", "User-Agent": TV_UA } : { "User-Agent": ANDROID_UA },
+  });
   if (!xmlRes.ok) {
     throw new TranscriptError("fetch_failed", `無法下載字幕（HTTP ${xmlRes.status}）`, xmlRes.status === 429 || xmlRes.status >= 500);
   }
   const segments = toSegments(parseTimedText(await xmlRes.text()));
-  if (!segments.length) throw new TranscriptError("fetch_failed", "字幕檔是空的，請稍後重試", true);
+  if (!segments.length) {
+    // Signed URLs that need a PO token come back empty rather than as an error.
+    throw new TranscriptError("fetch_failed", "字幕檔是空的，請稍後重試", !signedIn, { signedIn: !!signedIn });
+  }
   return {
     kind: "ok",
     source: choice.source as "youtube_manual" | "youtube_auto",

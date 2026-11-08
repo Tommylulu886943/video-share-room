@@ -10,10 +10,12 @@ export interface NoteActor {
   userId: string;
   /** Tenant admins may delete (not edit) anyone's note. */
   isAdmin: boolean;
+  /** The club the video belongs to — used to show authors by their club name. */
+  tenantId: string;
 }
 
-export function noteActor(userId: string, ctx: Pick<TenantContext, "isAdmin">): NoteActor {
-  return { userId, isAdmin: ctx.isAdmin };
+export function noteActor(userId: string, ctx: Pick<TenantContext, "isAdmin" | "tenant">): NoteActor {
+  return { userId, isAdmin: ctx.isAdmin, tenantId: ctx.tenant.id };
 }
 
 /** The video if this member may view it (same rules as the video page). */
@@ -30,14 +32,25 @@ export async function loadNoteVideo(slug: string, id: string) {
   return { video, actor: noteActor(session.id, ctx) };
 }
 
-const include = { author: { select: { id: true, username: true } } } as const;
+// Authors are shown by their per-club display name (Membership.name), like the
+// rest of the club UI — not by the global login username.
+const includeFor = (tenantId: string) =>
+  ({
+    author: {
+      select: {
+        id: true,
+        username: true,
+        memberships: { where: { tenantId }, select: { name: true }, take: 1 },
+      },
+    },
+  }) as const;
 type Row = {
   id: string;
   kind: string;
   startMs: number;
   body: string;
   authorId: string | null;
-  author: { id: string; username: string } | null;
+  author: { id: string; username: string; memberships: { name: string }[] } | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -49,7 +62,13 @@ function view(row: Row, actor: NoteActor): NoteView {
     kind: row.kind as NoteKind,
     startMs: row.startMs,
     body: row.body,
-    author: row.author,
+    author: row.author
+      ? {
+          id: row.author.id,
+          username: row.author.username,
+          name: row.author.memberships[0]?.name || row.author.username,
+        }
+      : null,
     createdAt: row.createdAt.toISOString(),
     edited: row.updatedAt.getTime() - row.createdAt.getTime() > 1000,
     mine,
@@ -60,7 +79,7 @@ function view(row: Row, actor: NoteActor): NoteView {
 export async function listNotes(videoId: string, actor: NoteActor): Promise<NoteView[]> {
   const rows = await prisma.videoNote.findMany({
     where: { videoId },
-    include,
+    include: includeFor(actor.tenantId),
     orderBy: [{ startMs: "asc" }, { createdAt: "asc" }],
   });
   return rows.map((r) => view(r, actor));
@@ -69,7 +88,7 @@ export async function listNotes(videoId: string, actor: NoteActor): Promise<Note
 export async function createNote(videoId: string, actor: NoteActor, input: CreateNoteInput): Promise<NoteView> {
   const row = await prisma.videoNote.create({
     data: { videoId, authorId: actor.userId, kind: input.kind, startMs: input.startMs, body: input.body },
-    include,
+    include: includeFor(actor.tenantId),
   });
   return view(row, actor);
 }
@@ -92,7 +111,7 @@ export async function updateNote(
   const row = await prisma.videoNote.update({
     where: { id: note.id },
     data: { kind: patch.kind, startMs: patch.startMs, body: patch.body },
-    include,
+    include: includeFor(actor.tenantId),
   });
   return view(row, actor);
 }

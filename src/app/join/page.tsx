@@ -61,7 +61,7 @@ export default async function JoinPage() {
                 <div>
                   <p className="font-medium text-slate-800">{m.tenantName}</p>
                   <p className="text-xs text-slate-500">
-                    {m.name}・{m.level}
+                    {m.level ? `${m.name}・${m.level}` : m.name}
                   </p>
                 </div>
                 <StatusBadge status={m.status} />

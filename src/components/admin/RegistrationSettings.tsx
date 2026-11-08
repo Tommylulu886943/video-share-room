@@ -55,6 +55,10 @@ export function RegistrationSettings({
   const [error, setError] = useState<string | null>(null);
 
   async function save(next: { emailV: boolean; approval: boolean }) {
+    if (saving) return;
+    const previous = { emailV, approval };
+    setEmailV(next.emailV);
+    setApproval(next.approval);
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -66,6 +70,9 @@ export function RegistrationSettings({
       setMsg("已儲存");
       router.refresh();
     } catch (err) {
+      // Optimistic flip failed: show the real saved value again.
+      setEmailV(previous.emailV);
+      setApproval(previous.approval);
       setError(err instanceof Error ? err.message : "儲存失敗");
     } finally {
       setSaving(false);
@@ -81,19 +88,13 @@ export function RegistrationSettings({
       <div className="mt-3 divide-y divide-slate-100">
         <Toggle
           checked={emailV}
-          onChange={(v) => {
-            setEmailV(v);
-            save({ emailV: v, approval });
-          }}
+          onChange={(v) => save({ emailV: v, approval })}
           label="需要 email 驗證"
           hint="開啟後，新成員須點擊驗證信連結才算完成申請（需設定好寄信服務）。"
         />
         <Toggle
           checked={approval}
-          onChange={(v) => {
-            setApproval(v);
-            save({ emailV, approval: v });
-          }}
+          onChange={(v) => save({ emailV, approval: v })}
           label="需要管理者審核"
           hint="開啟後，新成員須由管理者在「會員審核」核可後才能觀看。"
         />

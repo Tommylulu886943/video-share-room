@@ -51,8 +51,11 @@ export const POST = route(async (req: Request) => {
           username: input.username,
           email: input.email,
           passwordHash,
-          // If we're not verifying email, the account is usable immediately.
-          emailVerified: !needsVerification,
+          // Only a consumed verification token proves the address. A club that
+          // skips verification still gets its member (status above), but the
+          // account-level flag must stay false so a stricter club joined later
+          // still verifies (see /api/auth/join).
+          emailVerified: false,
         },
       },
     },
