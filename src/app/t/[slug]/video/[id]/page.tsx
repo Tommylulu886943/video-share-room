@@ -132,6 +132,7 @@ export default async function VideoPage({
           videoId={video.youtubeId}
           title={video.title}
           posterUrl={videoPoster(video)}
+          canForce={ctx.canUpload}
         >
           {details}
         </YouTubeWatch>

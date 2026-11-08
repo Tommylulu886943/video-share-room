@@ -59,6 +59,7 @@ npm run db:seed:prod
 | `EMAIL_PROVIDER` | `resend` |
 | `RESEND_API_KEY` | 從 https://resend.com/api-keys 建立 |
 | `EMAIL_FROM` | 場邊 Courtside \<onboarding@resend.dev\>（測試用）或你在 Resend 驗證過網域的寄件地址 |
+| `NVIDIA_API_KEY` 或 `ANTHROPIC_API_KEY` | （選填）逐字稿繁中翻譯用（其他選項見 `.env.example`）；未設定時仍可取得原文，翻譯狀態顯示「翻譯服務未設定」。NVIDIA 免費金鑰限開發評估用途、有速率限制，正式長期使用請改付費方案或自架 NIM |
 
 4. Deploy。
 
@@ -70,3 +71,5 @@ npm run db:seed:prod
   - 程式走 Resend 的 HTTP API（非 SMTP），在 Vercel serverless 上最穩定。
 - 之後 schema 有變動時：本機 `npm run db:migrate` 產生新的 migration，再帶 `TURSO_*` 跑 `npm run db:push:turso` 套到 Turso。
 - `.env` 與 `dev.db` 不會進 git；秘密只放在本機 `.env` 與 Vercel 環境變數。
+- **筆記**：`20261109000000_video_notes` migration 新增 `VideoNote` 表，同樣用 `npm run db:push:turso` 套到 Turso。
+- **逐字稿**：新增的 `20261108000000_transcript_jobs` migration 需同樣用 `npm run db:push:turso` 套到 Turso（會移除舊的 `Transcript` 快取表）。背景處理在 API 回應後以 `after()` 執行，路由 `maxDuration` 為 300 秒。ASR（無字幕時的語音辨識）需要能執行 Python 的主機，Vercel serverless 上不提供；未設定時會如實回報「未設定語音辨識」。

@@ -69,6 +69,7 @@ model User {
   tokens         Token[]
   uploadedVideos Video[]      @relation("VideoUploader")
   favorites      Favorite[]
+  videoNotes     VideoNote[]
 }
 
 /// A user's personal favorite (bookmark) of a video.
@@ -164,8 +165,30 @@ model Video {
   tags       VideoTag[]
   access     VideoAccess[]
   favorites  Favorite[]
+  transcripts    VideoTranscript[]
+  transcriptJobs TranscriptJob[]
+  memberNotes    VideoNote[] // `notes` is the uploader's description field
 
   @@index([tenantId, visibility])
+}
+
+/// A member's timestamped note on a video (心得 / 要點 / 關注點), visible to
+/// everyone who can view the video. Anchored to the original timeline in
+/// integer ms (not to a segment id) so it survives transcript re-fetches.
+model VideoNote {
+  id        String   @id @default(cuid())
+  videoId   String
+  authorId  String? // null once the author's account is deleted (note is kept)
+  kind      String   @default("insight") // "insight" | "point" | "focus"
+  startMs   Int
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  video  Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([videoId, startMs])
 }
 
 /// Many-to-many join between Video and Tag.
@@ -253,15 +276,75 @@ model TagAccess {
 /// Cached caption transcript for an external video (shared across tenants —
 /// captions are public data keyed by the source's own id). `lang` is "orig" for
 /// the source track or a translation target such as "zh-TW".
-model Transcript {
-  source     String // "youtube"
-  externalId String
-  lang       String
-  sourceLang String? // language code of the original track, e.g. "ja"
-  kind       String? // "asr" (auto-generated) | "manual"
-  status     String // "ok" | "none" (video has no captions)
-  segments   String   @default("[]") // JSON: [startMs, durMs, text][]
-  fetchedAt  DateTime @default(now())
+/// A published original-language transcript for one platform video. Each
+/// distinct successful result gets the next `version`; rows are immutable so a
+/// translation always stays bound to the exact text and timings it was made from.
+model VideoTranscript {
+  id             String   @id @default(cuid())
+  videoId        String
+  youtubeVideoId String // source id at fetch time; ignored once the video points elsewhere
+  version        Int
+  source         String // "youtube_manual" | "youtube_auto" | "asr"
+  language       String // actual language of the original, e.g. "ja"
+  contentHash    String // sha256 of source/language/segments — identical refetches reuse the version
+  segments       String // JSON: {id, start_ms, end_ms, text}[]
+  requestedAt    DateTime // createdAt of the job that produced it (newer requests win)
+  createdAt      DateTime @default(now())
 
-  @@id([source, externalId, lang])
+  video        Video                        @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  translations VideoTranscriptTranslation[]
+
+  @@unique([videoId, version])
+  @@index([videoId, youtubeVideoId])
+}
+
+/// Machine translation of one transcript version. Segment ids match the
+/// original's; timings always come from the original.
+model VideoTranscriptTranslation {
+  id             String   @id @default(cuid())
+  transcriptId   String
+  targetLanguage String // e.g. "zh-TW"
+  segments       String // JSON: {id, text}[]
+  model          String
+  requestedAt    DateTime
+  createdAt      DateTime @default(now())
+
+  transcript VideoTranscript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  @@unique([transcriptId, targetLanguage])
+}
+
+/// Background work for transcripts/translations. Status is kept apart from the
+/// published content so a failed refresh never hides the last good result.
+model TranscriptJob {
+  id             String    @id @default(cuid())
+  videoId        String
+  kind           String // "transcript" | "translation"
+  status         String // "queued" | "processing" | "completed" | "failed"
+  dedupeKey      String
+  activeKey      String?   @unique // = dedupeKey while queued/processing, null after → one live job per key
+  youtubeVideoId String
+  language       String? // transcript: requested source language (null = detect)
+  force          Boolean   @default(false)
+  thenTranslate  String? // transcript: translate to this language afterwards
+  transcriptId   String? // translation: original version being translated
+  targetLanguage String? // translation
+  attempts       Int       @default(0)
+  leaseToken     String?
+  leaseUntil     DateTime?
+  progress       String? // translation: JSON {segmentId: text} of finished batches (resume)
+  progressDone   Int       @default(0)
+  progressTotal  Int       @default(0)
+  resultId       String?
+  errorCode      String?
+  errorMessage   String?
+  detail         String? // JSON, e.g. available caption languages
+  requestedById  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  finishedAt     DateTime?
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId, kind, createdAt])
 }

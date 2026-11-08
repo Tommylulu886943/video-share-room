@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
+import { NotesPanel, useVideoNotes, type NoteLine, type NotesPanelHandle } from "@/components/VideoNotes";
 import { loadYouTubeIframeApi, type YTPlayer } from "@/lib/youtube-iframe";
+import { youtubeTimeUrl } from "@/lib/transcript";
 
 /**
- * YouTube player + synced transcript. Desktop: transcript in a sticky column
- * beside the video; mobile: stacked below the video details (`children`).
+ * YouTube player + synced transcript + timestamped member notes. Desktop: the
+ * transcript is a sticky column beside the video, notes sit under the video
+ * details (`children`); mobile: video, details, transcript, notes.
  */
 export function YouTubeWatch({
   slug,
@@ -15,6 +18,7 @@ export function YouTubeWatch({
   videoId,
   title,
   posterUrl,
+  canForce,
   children,
 }: {
   slug: string;
@@ -22,6 +26,8 @@ export function YouTubeWatch({
   videoId: string;
   title: string;
   posterUrl: string | null;
+  /** Uploader/admin: may force transcript re-fetch / re-translation. */
+  canForce: boolean;
   children: ReactNode;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -30,6 +36,13 @@ export function YouTubeWatch({
   const [playing, setPlaying] = useState(false);
   const [startAt, setStartAt] = useState(0);
   const [timeMs, setTimeMs] = useState<number | null>(null);
+  // IFrame API unavailable (blocked script etc.) → timestamps open YouTube instead.
+  const [apiFailed, setApiFailed] = useState(false);
+  const notes = useVideoNotes(slug, id);
+  const notesRef = useRef<NotesPanelHandle>(null);
+  const [lines, setLines] = useState<NoteLine[]>([]);
+  const addNote = useCallback((ms: number) => notesRef.current?.startNote(ms), []);
+  const showNote = useCallback((noteId: string) => notesRef.current?.showNote(noteId), []);
 
   useEffect(() => {
     if (!playing) return;
@@ -58,6 +71,7 @@ export function YouTubeWatch({
       })
       .catch(() => {
         // Player still works; only the transcript highlight/seek is unavailable.
+        if (!cancelled) setApiFailed(true);
       });
     return () => {
       cancelled = true;
@@ -68,6 +82,10 @@ export function YouTubeWatch({
 
   const seek = useCallback(
     (ms: number) => {
+      if (apiFailed) {
+        window.open(youtubeTimeUrl(videoId, ms), "_blank", "noopener,noreferrer");
+        return;
+      }
       setTimeMs(ms);
       const player = playerRef.current;
       if (player) {
@@ -81,12 +99,12 @@ export function YouTubeWatch({
         pendingSeek.current = ms;
       }
     },
-    [playing],
+    [playing, apiFailed, videoId],
   );
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-6">
-      <div className="min-w-0">
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-x-6">
+      <div className="min-w-0 lg:col-start-1 lg:row-start-1">
         <div className="overflow-hidden rounded-xl bg-black shadow-sm">
           <div className="relative aspect-video">
             <VideoEmbed
@@ -108,7 +126,20 @@ export function YouTubeWatch({
         id={id}
         timeMs={timeMs}
         onSeek={seek}
-        className="mt-6 h-[60vh] lg:sticky lg:top-20 lg:mt-0 lg:h-[min(640px,calc(100vh-7rem))]"
+        canForce={canForce}
+        notes={notes.notes}
+        onAddNote={addNote}
+        onShowNote={showNote}
+        onLinesChange={setLines}
+        className="mt-6 h-[60vh] lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:h-[min(640px,calc(100vh-7rem))]"
+      />
+      <NotesPanel
+        ref={notesRef}
+        api={notes}
+        timeMs={timeMs}
+        lines={lines}
+        onSeek={seek}
+        className="mt-6 min-w-0 lg:col-start-1 lg:row-start-2"
       />
     </div>
   );

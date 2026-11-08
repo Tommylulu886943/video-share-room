@@ -1,35 +1,39 @@
-import { prisma } from "@/lib/db";
-import { viewableVideoWhere } from "@/lib/access";
-import { ApiError, jsonOk, requireTenantContext, route } from "@/lib/api";
-import { getYouTubeTranscript, type TranscriptLang } from "@/lib/transcript-store";
+import { z } from "zod";
+import { ApiError, jsonOk, readJson, route } from "@/lib/api";
+import { getTranscriptState, requestTranscript } from "@/lib/transcript-jobs";
+import { loadTranscriptVideo, mapRequestError, scheduleAfter } from "@/lib/transcript-api";
 
 export const runtime = "nodejs";
+// Background work scheduled with after() shares this budget.
+export const maxDuration = 300;
 
-const LANGS: readonly TranscriptLang[] = ["orig", "zh-TW"];
+type Params = { params: Promise<{ slug: string; id: string }> };
 
-export const GET = route(
-  async (
-    req: Request,
-    { params }: { params: Promise<{ slug: string; id: string }> },
-  ) => {
-    const { slug, id } = await params;
-    const { ctx } = await requireTenantContext(slug);
-    const lang = (new URL(req.url).searchParams.get("lang") ?? "orig") as TranscriptLang;
-    if (!LANGS.includes(lang)) throw new ApiError(400, "不支援的語言");
+const NO_STORE = { headers: { "Cache-Control": "no-store" } };
 
-    const video = await prisma.video.findFirst({
-      where: { AND: [{ id }, viewableVideoWhere(ctx)] },
-      select: { source: true, youtubeId: true },
-    });
-    if (!video) throw new ApiError(404, "找不到影片");
-    if (video.source !== "youtube") throw new ApiError(404, "此影片來源不支援逐字稿");
+/** Current original transcript, translations, latest job status and errors. */
+export const GET = route(async (_req: Request, { params }: Params) => {
+  const { slug, id } = await params;
+  const { video } = await loadTranscriptVideo(slug, id);
+  return jsonOk(await getTranscriptState(video, scheduleAfter), NO_STORE);
+});
 
-    try {
-      const data = await getYouTubeTranscript(video.youtubeId, lang);
-      return jsonOk(data, { headers: { "Cache-Control": "private, max-age=3600" } });
-    } catch (err) {
-      console.error("[transcript] fetch failed:", video.youtubeId, lang, err);
-      throw new ApiError(502, lang === "orig" ? "暫時無法取得字幕" : "翻譯暫時無法使用");
-    }
-  },
-);
+const Body = z.object({
+  language: z.string().max(20).nullish(),
+  force: z.boolean().optional(),
+  translateTo: z.string().max(20).nullish(),
+});
+
+/** Get (or refresh) the original transcript; optionally translate once it exists. */
+export const POST = route(async (req: Request, { params }: Params) => {
+  const { slug, id } = await params;
+  const { session, ctx, video } = await loadTranscriptVideo(slug, id);
+  const body = Body.parse(await readJson(req));
+  if (body.force && !ctx.canUpload) throw new ApiError(403, "只有可上傳影片的成員能重新取得逐字稿");
+  await requestTranscript(
+    video,
+    { language: body.language ?? null, force: body.force, translateTo: body.translateTo ?? null, userId: session.id },
+    scheduleAfter,
+  ).catch(mapRequestError);
+  return jsonOk(await getTranscriptState(video), NO_STORE);
+});
