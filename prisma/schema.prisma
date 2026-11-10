@@ -172,6 +172,10 @@ model Video {
   @@index([tenantId, visibility])
 }
 
+// DORMANT (2026-11-11): the transcript / translation / timestamped-notes feature
+// was rolled back from the web app (moved to a local app). These tables stay so
+// existing rows in Turso are not dropped; nothing reads or writes them. Remove
+// them only together with an explicit, reviewed DROP migration.
 /// A member's timestamped note on a video (心得 / 要點 / 關注點), visible to
 /// everyone who can view the video. Anchored to the original timeline in
 /// integer ms (not to a segment id) so it survives transcript re-fetches.
@@ -276,6 +280,10 @@ model TagAccess {
 /// Cached caption transcript for an external video (shared across tenants —
 /// captions are public data keyed by the source's own id). `lang` is "orig" for
 /// the source track or a translation target such as "zh-TW".
+// DORMANT (2026-11-11): the transcript / translation / timestamped-notes feature
+// was rolled back from the web app (moved to a local app). These tables stay so
+// existing rows in Turso are not dropped; nothing reads or writes them. Remove
+// them only together with an explicit, reviewed DROP migration.
 /// A published original-language transcript for one platform video. Each
 /// distinct successful result gets the next `version`; rows are immutable so a
 /// translation always stays bound to the exact text and timings it was made from.

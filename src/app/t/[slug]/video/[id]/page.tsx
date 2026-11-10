@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { pageTenantContext } from "@/lib/page";
 import { viewableVideoWhere } from "@/lib/access";
 import { VideoEmbed } from "@/components/VideoEmbed";
-import { YouTubeWatch } from "@/components/YouTubeWatch";
 import { ViewTracker } from "@/components/ViewTracker";
 import { FavoriteStar } from "@/components/FavoriteStar";
 import {
@@ -47,9 +46,33 @@ export default async function VideoPage({
       : video.category.name
     : null;
 
-  const isYouTube = video.source === "youtube";
+  return (
+    <main className="mx-auto w-full max-w-3xl px-3 py-5 sm:px-5">
+      <ViewTracker slug={slug} videoId={video.id} />
+      <Link
+        href={`/t/${slug}`}
+        className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
+      >
+        ← 返回影片牆
+      </Link>
 
-  const details = (
+      <div
+        className={`overflow-hidden rounded-xl bg-black shadow-sm ${
+          isPortraitSource(video.source) ? "mx-auto w-full max-w-[460px]" : ""
+        }`}
+      >
+        <div
+          className={`relative ${isPortraitSource(video.source) ? "aspect-[9/16]" : "aspect-video"}`}
+        >
+          <VideoEmbed
+            source={video.source}
+            videoId={video.youtubeId}
+            title={video.title}
+            posterUrl={videoPoster(video)}
+          />
+        </div>
+      </div>
+
       <div className="mt-4">
         <p className="mb-1 text-sm font-semibold text-[var(--brand)]">
           {formatTaipeiDate(video.recordedOn ?? video.createdAt)}
@@ -108,53 +131,6 @@ export default async function VideoPage({
           )}
         </div>
       </div>
-  );
-
-  return (
-    <main
-      className={`mx-auto w-full px-3 py-5 sm:px-5 ${isYouTube ? "max-w-6xl xl:max-w-7xl 2xl:max-w-[1600px]" : "max-w-3xl"}`}
-    >
-      <ViewTracker slug={slug} videoId={video.id} />
-      <Link
-        href={`/t/${slug}`}
-        className="mb-3 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800"
-      >
-        ← 返回影片牆
-      </Link>
-
-      {isYouTube ? (
-        // YouTube: player + synced transcript column.
-        <YouTubeWatch
-          slug={slug}
-          id={video.id}
-          videoId={video.youtubeId}
-          title={video.title}
-          posterUrl={videoPoster(video)}
-          canForce={ctx.canUpload}
-        >
-          {details}
-        </YouTubeWatch>
-      ) : (
-        <>
-          <div
-            className={`overflow-hidden rounded-xl bg-black shadow-sm ${
-              isPortraitSource(video.source) ? "mx-auto w-full max-w-[460px]" : ""
-            }`}
-          >
-            <div
-              className={`relative ${isPortraitSource(video.source) ? "aspect-[9/16]" : "aspect-video"}`}
-            >
-              <VideoEmbed
-                source={video.source}
-                videoId={video.youtubeId}
-                title={video.title}
-                posterUrl={videoPoster(video)}
-              />
-            </div>
-          </div>
-          {details}
-        </>
-      )}
     </main>
   );
 }

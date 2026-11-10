@@ -5,6 +5,8 @@ import { importUrl } from "../extensions/courtside/urls.mjs";
 
 test("existing platforms remain playable", () => {
   assert.deepEqual(parseVideoRef("https://youtu.be/dQw4w9WgXcQ"), { source: "youtube", id: "dQw4w9WgXcQ" });
+  // A timestamped share link is a playback start, not part of the stored id.
+  assert.deepEqual(parseVideoRef("https://www.youtube.com/watch?v=S9qKB6pLLlY&t=121s"), { source: "youtube", id: "S9qKB6pLLlY" });
   assert.equal(parseVideoRef("https://www.bilibili.com/video/BV1234567890")?.source, "bilibili");
   assert.equal(parseVideoRef("https://www.instagram.com/reel/abc123/")?.source, "instagram");
 });
